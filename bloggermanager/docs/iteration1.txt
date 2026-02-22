@@ -7,3 +7,4 @@
 
 [ DEVELOPMENT OF ITERATION 1 ( 40 hour commitment from 22-26 ) ]
 22/02 18:15 { Initialisation of Development }
+22/02 20:06 { Firestore issue solved, now implemented into the project }
