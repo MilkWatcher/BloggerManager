@@ -52,7 +52,6 @@ class AppProvider with ChangeNotifier {
       
       // Update local profile
       _profile = _profile?.copyWith(
-        location: updates['location'] ?? _profile!.location,
         domainLink: updates['domain_link'] ?? _profile!.domainLink,
         profileDetails: updates['profile_details'] ?? _profile!.profileDetails,
         tags: updates['tags'] ?? _profile!.tags,

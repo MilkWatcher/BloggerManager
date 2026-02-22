@@ -21,7 +21,7 @@ class AuthService {
     try {
       debugPrint('Starting signup for: $email');
       
-      // Create user account
+      // Create user account ONLY
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -31,25 +31,7 @@ class AuthService {
       // Update display name
       await userCredential.user?.updateDisplayName(displayName);
       debugPrint('Display name updated');
-
-      // Create initial blogger profile in Firestore with "Pending" status
-      final uid = userCredential.user!.uid;
-      debugPrint('Creating Firestore profile for: $uid');
       
-      await _firestore.collection('bloggers').doc(uid).set({
-        'userId': uid,
-        'email': email,
-        'displayName': displayName,
-        'location': const GeoPoint(0, 0),
-        'domain_link': '',
-        'profile_details': '',
-        'tags': [],
-        'verification_status': 'Pending',
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      
-      debugPrint('Profile created successfully in Firestore');
       return (true, 'Account created successfully!');
     } on FirebaseAuthException catch (e) {
       debugPrint('Firebase Auth Error: ${e.code} - ${e.message}');

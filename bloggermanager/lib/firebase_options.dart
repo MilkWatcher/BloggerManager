@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     return FirebaseOptions(
-      apiKey: "AIzaSyBtFttQJNFBBunDX2LuLavDfQluklAh7L0Y",
+      apiKey: "AIzaSyBtFttQJNFBBunDX2LuLavDfQluklAh7L0",
       authDomain: "bloggermanager-f1e21.firebaseapp.com",
       projectId: "bloggermanager-f1e21",
       storageBucket: "bloggermanager-f1e21.firebasestorage.app",

@@ -32,31 +32,29 @@ class FirestoreService {
     Map<String, dynamic> updates,
   ) async {
     try {
+      debugPrint('Firestore: Starting profile update for user: $userId');
+      debugPrint('Firestore: Updates: $updates');
+      
       updates['updatedAt'] = FieldValue.serverTimestamp();
-      // Use set with merge to avoid permission issues
+      
+      // Use set with merge - creates if doesn't exist
       await _firestore
           .collection(collectionName)
           .doc(userId)
-          .set(updates, SetOptions(merge: true))
-          .timeout(
-            const Duration(seconds: 10),
-            onTimeout: () {
-              throw TimeoutException('Firestore write timed out after 10 seconds');
-            },
-          );
-    } on TimeoutException catch (e) {
-      throw Exception('Save timeout: $e. Check your internet connection.');
+          .set(updates, SetOptions(merge: true));
+      
+      debugPrint('Firestore: Profile update successful!');
     } catch (e) {
-      throw Exception('Failed to update profile: $e');
+      debugPrint('Firestore ERROR: $e');
+      throw Exception('Failed to save profile: $e');
     }
   }
 
-  /// Get all approved bloggers (for discovery)
+  /// Get all bloggers
   Future<List<BloggerProfile>> getApprovedBloggers() async {
     try {
       QuerySnapshot snapshot = await _firestore
           .collection(collectionName)
-          .where('verification_status', isEqualTo: 'Approved')
           .orderBy('updatedAt', descending: true)
           .get();
 
@@ -67,17 +65,16 @@ class FirestoreService {
           ))
           .toList();
     } catch (e) {
-      throw Exception('Failed to fetch approved bloggers: $e');
+      throw Exception('Failed to fetch bloggers: $e');
     }
   }
 
-  /// Search bloggers by tags/location
+  /// Search bloggers by tags
   Future<List<BloggerProfile>> searchBloggersByTag(String tag) async {
     try {
       QuerySnapshot snapshot = await _firestore
           .collection(collectionName)
           .where('tags', arrayContains: tag)
-          .where('verification_status', isEqualTo: 'Approved')
           .get();
 
       return snapshot.docs

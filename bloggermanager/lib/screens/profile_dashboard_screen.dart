@@ -116,25 +116,6 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Status badge
-                if (provider.profile != null)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(provider.profile!.verificationStatus),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'Status: ${provider.profile!.verificationStatus}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 24),
-
                 // Bio section
                 const Text(
                   'Your Bio',
@@ -262,38 +243,11 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Info box
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'Your profile will be reviewed by our admin team. '
-                    'You will be notified once it\'s approved or if changes are needed.',
-                    style: TextStyle(fontSize: 14, color: Colors.blue),
-                  ),
-                ),
               ],
             ),
           );
         },
       ),
     );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Approved':
-        return Colors.green;
-      case 'Denied':
-        return Colors.red;
-      case 'Pending':
-        return Colors.orange;
-      default:
-        return Colors.grey;
-    }
   }
 }
