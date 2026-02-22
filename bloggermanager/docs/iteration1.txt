@@ -8,3 +8,14 @@
 [ DEVELOPMENT OF ITERATION 1 ( 40 hour commitment from 22-26 ) ]
 22/02 18:15 { Initialisation of Development }
 22/02 20:06 { Firestore issue solved, now implemented into the project }
+22/02 20:23 {COMMIT}
+Add Blogger Profile model and implement authentication and profile management screens
+
+- Created BloggerProfile model for managing user profiles.
+- Implemented LoginScreen for user authentication with email and password.
+- Developed SignupScreen for new user registration with validation.
+- Added ProfileDashboardScreen for users to complete and update their profiles.
+- Introduced AppProvider for state management and interaction with Firestore.
+- Implemented AuthService for user authentication and FirestoreService for profile management.
+- Integrated geolocation and URL launcher functionalities.
+- Updated platform-specific plugin registrations for geolocation and URL launcher.
