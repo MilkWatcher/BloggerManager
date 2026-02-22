@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:geolocator/geolocator.dart';
 import '../services/app_provider.dart';
 
 class ProfileDashboardScreen extends StatefulWidget {
@@ -14,14 +12,12 @@ class ProfileDashboardScreen extends StatefulWidget {
 class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
   late TextEditingController _bioController;
   late TextEditingController _linkController;
-  late TextEditingController _locationNameController;
 
   bool _isLoading = false;
   String? _errorMessage;
   String? _successMessage;
 
   List<String> _selectedTags = [];
-  GeoPoint? _currentLocation;
 
   final List<String> _availableTags = [
     'Politics',
@@ -43,7 +39,6 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
     super.initState();
     _bioController = TextEditingController();
     _linkController = TextEditingController();
-    _locationNameController = TextEditingController();
     _loadProfile();
   }
 
@@ -53,25 +48,6 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
       _bioController.text = provider.profile!.profileDetails;
       _linkController.text = provider.profile!.domainLink;
       _selectedTags = List.from(provider.profile!.tags);
-      _currentLocation = provider.profile!.location;
-    }
-  }
-
-  void _getCurrentLocation() async {
-    try {
-      final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        await Geolocator.requestPermission();
-      }
-
-      final position = await Geolocator.getCurrentPosition();
-      setState(() {
-        _currentLocation = GeoPoint(position.latitude, position.longitude);
-        _locationNameController.text =
-            '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
-      });
-    } catch (e) {
-      setState(() => _errorMessage = 'Failed to get location: $e');
     }
   }
 
@@ -86,11 +62,6 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
       return;
     }
 
-    if (_currentLocation == null) {
-      setState(() => _errorMessage = 'Location is required');
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -102,13 +73,12 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
         'profile_details': _bioController.text,
         'domain_link': _linkController.text,
         'tags': _selectedTags,
-        'location': _currentLocation,
       });
 
       if (success) {
         setState(() {
           _isLoading = false;
-          _successMessage = 'Profile saved! Awaiting admin approval...';
+          _successMessage = 'Profile saved successfully!';
         });
 
         Future.delayed(const Duration(seconds: 2), () {
@@ -129,7 +99,6 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
   void dispose() {
     _bioController.dispose();
     _linkController.dispose();
-    _locationNameController.dispose();
     super.dispose();
   }
 
@@ -207,38 +176,6 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
                   keyboardType: TextInputType.url,
                 ),
                 const SizedBox(height: 24),
-
-                // Location
-                const Text(
-                  'Your Location',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _locationNameController,
-                        decoration: InputDecoration(
-                          hintText: 'Getting location...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey[50],
-                          prefixIcon: const Icon(Icons.location_on),
-                        ),
-                        readOnly: true,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: _getCurrentLocation,
-                      icon: const Icon(Icons.my_location),
-                      label: const Text('Get'),
-                    ),
-                  ],
-                ),
                 const SizedBox(height: 24),
 
                 // Tags
