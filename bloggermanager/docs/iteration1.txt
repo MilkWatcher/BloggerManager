@@ -1,0 +1,9 @@
+09/02 -> 11/02 { Worked on backend database in Firestore }
+14/02 -> 17/02 { No Changes }
+18/02 -> 20/02 { Studying Flutter Frameworks through youtube tutorials and Flutter documents }
+21/02 17:02 { Initialise Development of Profile }
+21/02 21:02 { Deeper research into "search based" applications, this has resulted in a major update in research and development, stopping any further development as it may impact it }
+22/02 { Reset in development }
+
+[ DEVELOPMENT OF ITERATION 1 ( 40 hour commitment from 22-26 ) ]
+22/02 18:15 { Initialisation of Development }
