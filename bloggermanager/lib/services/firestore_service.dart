@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import '../models/blogger_profile.dart';
 
 class FirestoreService {
@@ -31,8 +32,20 @@ class FirestoreService {
     Map<String, dynamic> updates,
   ) async {
     try {
-      updates['updatedAt'] = DateTime.now();
-      await _firestore.collection(collectionName).doc(userId).update(updates);
+      updates['updatedAt'] = FieldValue.serverTimestamp();
+      // Use set with merge to avoid permission issues
+      await _firestore
+          .collection(collectionName)
+          .doc(userId)
+          .set(updates, SetOptions(merge: true))
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw TimeoutException('Firestore write timed out after 10 seconds');
+            },
+          );
+    } on TimeoutException catch (e) {
+      throw Exception('Save timeout: $e. Check your internet connection.');
     } catch (e) {
       throw Exception('Failed to update profile: $e');
     }

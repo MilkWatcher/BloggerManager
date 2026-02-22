@@ -45,8 +45,8 @@ class AuthService {
         'profile_details': '',
         'tags': [],
         'verification_status': 'Pending',
-        'createdAt': Timestamp.now(),
-        'updatedAt': Timestamp.now(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
       
       debugPrint('Profile created successfully in Firestore');
