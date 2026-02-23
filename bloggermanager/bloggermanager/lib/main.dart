@@ -1,26 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart'
-  show TargetPlatform, defaultTargetPlatform, kIsWeb;
 
 import 'firebase_options.dart';
-
-bool get _supportsFirebaseAnalytics {
-  if (kIsWeb) {
-    return true;
-  }
-
-  switch (defaultTargetPlatform) {
-    case TargetPlatform.android:
-    case TargetPlatform.iOS:
-    case TargetPlatform.macOS:
-      return true;
-    default:
-      return false;
-  }
-}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,25 +18,25 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorObservers: _supportsFirebaseAnalytics
-          ? [FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance)]
-          : <NavigatorObserver>[],
-      home: const SubmitTextScreen(),
+    return const MaterialApp(
+      home: FirestoreConnectionTestScreen(),
     );
   }
 }
 
-class SubmitTextScreen extends StatefulWidget {
-  const SubmitTextScreen({super.key});
+class FirestoreConnectionTestScreen extends StatefulWidget {
+  const FirestoreConnectionTestScreen({super.key});
 
   @override
-  State<SubmitTextScreen> createState() => _SubmitTextScreenState();
+  State<FirestoreConnectionTestScreen> createState() =>
+      _FirestoreConnectionTestScreenState();
 }
 
-class _SubmitTextScreenState extends State<SubmitTextScreen> {
+class _FirestoreConnectionTestScreenState
+    extends State<FirestoreConnectionTestScreen> {
   final TextEditingController _textController = TextEditingController();
   bool _isSubmitting = false;
+  String _status = 'Ready';
 
   @override
   void dispose() {
@@ -70,6 +52,7 @@ class _SubmitTextScreenState extends State<SubmitTextScreen> {
 
     setState(() {
       _isSubmitting = true;
+      _status = 'Submitting...';
     });
 
     try {
@@ -79,25 +62,42 @@ class _SubmitTextScreenState extends State<SubmitTextScreen> {
       await submissionRef.set({
         'id': submissionRef.id,
         'text': value,
-        'createdAt': FieldValue.serverTimestamp(),
+        'createdAt': DateTime.now().toUtc().toIso8601String(),
       });
+
+      final savedDoc = await submissionRef.get();
+      final savedText = (savedDoc.data()?['text'] ?? '').toString();
 
       _textController.clear();
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Submitted to Firestore')),
-      );
-    } catch (_) {
+      setState(() {
+        _status = '✅ Saved and read back: "$savedText"';
+      });
+    } on FirebaseException catch (error) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to submit text')),
-      );
+      final details = error.message == null
+          ? error.code
+          : '${error.code}: ${error.message}';
+
+      setState(() {
+        _status = '❌ $details';
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      final details = error.toString();
+
+      setState(() {
+        _status = '❌ $details';
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -110,7 +110,7 @@ class _SubmitTextScreenState extends State<SubmitTextScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Blogger Manager')),
+      appBar: AppBar(title: const Text('Firestore Connection Test')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -119,7 +119,7 @@ class _SubmitTextScreenState extends State<SubmitTextScreen> {
             TextField(
               controller: _textController,
               decoration: const InputDecoration(
-                labelText: 'Enter text',
+                labelText: 'Enter test text',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -134,9 +134,11 @@ class _SubmitTextScreenState extends State<SubmitTextScreen> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Submit'),
+                    : const Text('Submit to Firestore'),
               ),
             ),
+            const SizedBox(height: 12),
+            Text(_status),
           ],
         ),
       ),
