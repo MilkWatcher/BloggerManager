@@ -19,3 +19,7 @@ Add Blogger Profile model and implement authentication and profile management sc
 - Implemented AuthService for user authentication and FirestoreService for profile management.
 - Integrated geolocation and URL launcher functionalities.
 - Updated platform-specific plugin registrations for geolocation and URL launcher.
+
+23/02 14:00 Retrying Firestore issue, Developed simple User Input -> Fire store database application with flutter
+23/02 Implemented this as a Login/Sign up page for users
+23/02 Added profile dashboard, discovery screen, and initalised moderation suite.
