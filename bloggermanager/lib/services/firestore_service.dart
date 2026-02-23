@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 import '../models/blogger_profile.dart';
 
@@ -124,6 +125,59 @@ class FirestoreService {
           .toList();
     } catch (e) {
       throw Exception('Failed to fetch pending bloggers: $e');
+    }
+  }
+
+  /// Create initial profile after signup
+  Future<void> createInitialProfile(String userId, String email, String displayName) async {
+    try {
+      debugPrint('Firestore: Creating initial profile for user: $userId');
+      debugPrint('Firestore: Writing to collection: $collectionName, doc: $userId');
+      
+      // Add a small delay to ensure auth token is available
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      final profileData = {
+        'userId': userId,
+        'email': email,
+        'displayName': displayName,
+        'profile_details': '',
+        'domain_link': '',
+        'tags': [],
+        'createdAt': Timestamp.now(),
+        'updatedAt': Timestamp.now(),
+        'verification_status': 'Pending',
+      };
+      
+      debugPrint('Firestore: Profile data prepared, about to write...');
+      
+      int retries = 0;
+      const maxRetries = 3;
+      
+      while (retries < maxRetries) {
+        try {
+          await _firestore.collection(collectionName).doc(userId).set(profileData).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw Exception('Firestore write timeout after 10 seconds');
+            },
+          );
+          debugPrint('Firestore: Initial profile created successfully!');
+          return;
+        } catch (e) {
+          retries++;
+          debugPrint('Firestore: Write attempt $retries failed: $e');
+          if (retries < maxRetries) {
+            await Future.delayed(const Duration(seconds: 1));
+          }
+        }
+      }
+      
+      throw Exception('Failed to create profile after $maxRetries retries');
+    } catch (e) {
+      debugPrint('Firestore: Failed to create initial profile: $e');
+      debugPrint('Firestore: Error type: ${e.runtimeType}');
+      throw Exception('Failed to create profile: $e');
     }
   }
 

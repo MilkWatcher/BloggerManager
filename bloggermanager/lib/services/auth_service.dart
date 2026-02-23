@@ -1,10 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'firestore_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirestoreService _firestoreService = FirestoreService();
 
   /// Get current user
   User? get currentUser => _auth.currentUser;
@@ -31,6 +31,18 @@ class AuthService {
       // Update display name
       await userCredential.user?.updateDisplayName(displayName);
       debugPrint('Display name updated');
+      
+      // Create initial Firestore profile
+      String userId = userCredential.user!.uid;
+      debugPrint('About to create profile for userId: $userId with email: $email');
+      try {
+        await _firestoreService.createInitialProfile(userId, email, displayName);
+        debugPrint('Profile creation succeeded!');
+      } catch (firestoreError) {
+        debugPrint('PROFILE CREATION FAILED: $firestoreError');
+        // Don't fail the signup just because profile creation failed
+        // The user can complete it later
+      }
       
       return (true, 'Account created successfully!');
     } on FirebaseAuthException catch (e) {
