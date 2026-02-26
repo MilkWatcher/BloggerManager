@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
 class UploadBlogScreen extends StatefulWidget {
@@ -42,6 +43,7 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
   bool _isSubmitting = false;
   bool _isFetchingLocation = false;
   GeoPoint? _selectedLocation;
+  String? _selectedCounty;
 
   @override
   void dispose() {
@@ -84,6 +86,27 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
 
       setState(() {
         _selectedLocation = GeoPoint(position.latitude, position.longitude);
+      });
+
+      String? county;
+      try {
+        final List<Placemark> placemarks = await placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+        if (placemarks.isNotEmpty) {
+          county = placemarks.first.administrativeArea;
+        }
+      } catch (_) {
+        county = null;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _selectedCounty = county;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -148,6 +171,7 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
         'domainLink': domainLink,
         'tags': _selectedTags,
         'location': location,
+        'county': _selectedCounty,
         'googleMapsUrl': googleMapsUrl,
         'uploadedAt': FieldValue.serverTimestamp(),
         'uploadedBy': user.uid,
@@ -268,6 +292,8 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
                   ? 'No location selected yet.'
                   : 'Selected: ${_selectedLocation!.latitude.toStringAsFixed(5)}, ${_selectedLocation!.longitude.toStringAsFixed(5)}',
             ),
+            if (_selectedCounty != null && _selectedCounty!.isNotEmpty)
+              Text('County: ${_selectedCounty!}'),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,

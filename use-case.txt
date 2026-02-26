@@ -1,0 +1,44 @@
+# Overview of project:~
+    A web/mobile platform designed to connect niche local content creators and regional newspaper publishers. 
+    This would help people find local writers in the area. 
+    It’s designed to help small-town bloggers get noticed and to help local newspapers find local stories to share. 
+    By using this system, newspapers can discover new talent, and bloggers can reach more people. 
+    This is done by using a safe, moderated, searchable, geographic database.
+
+# 2 main use cases
+    1. blogger register
+        This use case begins when the Blogger wishes to register for a blogger profile. 
+        The blogger enters account credentials (email, username, password)
+        The blogger provides content details (domain link to content, and selects niche tags/filters).
+        The blogger provides Geolocation via geolocation, this records their current city, county, and country.
+        Application validates that all mandatory fields in the registration form are filled.
+
+        Post-condition: Registration is submitted and uploaded onto the site.
+
+    2. search for blogs
+        This use case begins when the Reader wishes to search for a blog by its location (radius, or definite), or niche tag/category filter/s. 
+        The reader opens the dashboard for searching.
+        The reader enters a location (e.g. “Kildare”) and selects a radius (e.g. “10 km”).
+        The reader selects a tag (e.g. cars)
+        The system filters the database for bloggers within the category, matching for niche tag/s and the geolocation radius.
+        The application displays the filtered list of the bloggers, blog titles and domain links.
+
+        Post-condition: Reader is present with verified local content matching their specific criteria.
+
+
+
+# Goals:
+
+[x] Defining the database schema to store blogger info, tags, and geolocation data
+    - Implemented in Firestore (`users`, `blogs`) with fields for profile metadata, tags, location, city/county/country, timestamps.
+
+[x] Setting up the API infrastructure to allow communication between Flutter frontend and the database.
+    - Implemented via Firebase Auth + Cloud Firestore integration in Flutter app screens/services.
+
+[x] Establishing the basic security and data privacy in the Blogger Manager required for handling user registrations.
+    - Basic controls implemented (authenticated access, ownership-based Firestore rules, protected writes).
+    - GDPR policy/legal documentation and retention workflow should be finalized before production scale.
+
+[x] Simple user interface to test the core features of the blogger manager.
+    - Delivered: sign up/login, required onboarding fields, geolocation capture, radius + tag discovery, upload blog, and profile dashboard with user blogs.
+
