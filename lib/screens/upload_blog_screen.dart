@@ -43,7 +43,9 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
   bool _isSubmitting = false;
   bool _isFetchingLocation = false;
   GeoPoint? _selectedLocation;
+  String? _selectedCity;
   String? _selectedCounty;
+  String? _selectedCountry;
 
   @override
   void dispose() {
@@ -88,17 +90,24 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
         _selectedLocation = GeoPoint(position.latitude, position.longitude);
       });
 
+      String? city;
       String? county;
+      String? country;
       try {
         final List<Placemark> placemarks = await placemarkFromCoordinates(
           position.latitude,
           position.longitude,
         );
         if (placemarks.isNotEmpty) {
-          county = placemarks.first.administrativeArea;
+          final Placemark placemark = placemarks.first;
+          city = placemark.locality;
+          county = placemark.administrativeArea;
+          country = placemark.country;
         }
       } catch (_) {
+        city = null;
         county = null;
+        country = null;
       }
 
       if (!mounted) {
@@ -106,7 +115,9 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
       }
 
       setState(() {
+        _selectedCity = city;
         _selectedCounty = county;
+        _selectedCountry = country;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -171,7 +182,9 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
         'domainLink': domainLink,
         'tags': _selectedTags,
         'location': location,
+        'city': _selectedCity,
         'county': _selectedCounty,
+        'country': _selectedCountry,
         'googleMapsUrl': googleMapsUrl,
         'uploadedAt': FieldValue.serverTimestamp(),
         'uploadedBy': user.uid,
