@@ -69,6 +69,27 @@ class MyApp extends StatelessWidget {
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
+  bool _isProfileComplete(Map<String, dynamic>? userData) {
+    if (userData == null) {
+      return false;
+    }
+
+    final bool explicitComplete =
+        userData['profileSetupCompleted'] as bool? ?? false;
+    if (explicitComplete) {
+      return true;
+    }
+
+    final String displayName = (userData['displayName'] as String? ?? '').trim();
+    final GeoPoint? location = userData['location'] as GeoPoint?;
+    final List<String> tags =
+        List<String>.from(userData['tags'] as List<dynamic>? ?? <dynamic>[])
+            .where((String tag) => tag.trim().isNotEmpty)
+            .toList();
+
+    return displayName.isNotEmpty && location != null && tags.isNotEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
     final FirebaseFirestore firestore = FirebaseFirestore.instanceFor(
@@ -100,8 +121,7 @@ class AuthGate extends StatelessWidget {
               }
 
               final Map<String, dynamic>? userData = userSnapshot.data?.data();
-              final bool profileSetupCompleted =
-                  userData?['profileSetupCompleted'] as bool? ?? false;
+              final bool profileSetupCompleted = _isProfileComplete(userData);
 
               if (!profileSetupCompleted) {
                 return CompleteProfileScreen(user: user);
@@ -214,15 +234,6 @@ class _AuthScreenState extends State<AuthScreen> {
       }, SetOptions(merge: true));
 
       if (!mounted) {
-        return;
-      }
-
-      if (!_isLoginMode) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => CompleteProfileScreen(user: user),
-          ),
-        );
         return;
       }
 
