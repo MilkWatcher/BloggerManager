@@ -30,7 +30,7 @@ class BloggerService {
   Future<void> updateBloggerProfile(
     String userId,
     String displayName,
-    String domainLink,
+    String? domainLink,
     String? profileDetails,
     GeoPoint? location,
     String? city,

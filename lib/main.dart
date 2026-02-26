@@ -11,6 +11,7 @@ import 'dart:developer' as developer;
 import 'firebase_options.dart';
 import 'models/blogger_user.dart';
 import 'services/google_geocoding_service.dart';
+import 'screens/browsable_bloggers_screen.dart';
 import 'screens/edit_blogger_profile_screen.dart';
 import 'screens/home_blog_search_screen.dart';
 import 'screens/upload_blog_screen.dart';
@@ -289,7 +290,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   final GoogleGeocodingService _googleGeocodingService =
       GoogleGeocodingService();
   final TextEditingController _displayNameController = TextEditingController();
-  final TextEditingController _domainLinkController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
   final List<String> _availableTags = [
     'Politics',
@@ -322,7 +322,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   @override
   void dispose() {
     _displayNameController.dispose();
-    _domainLinkController.dispose();
     _bioController.dispose();
     super.dispose();
   }
@@ -467,7 +466,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   Future<void> _completeProfile() async {
     final String displayName = _displayNameController.text.trim();
-    final String domainLink = _domainLinkController.text.trim();
     final String bio = _bioController.text.trim();
 
     if (displayName.isEmpty) {
@@ -480,13 +478,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     if (_selectedTags.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select at least one main content tag.')),
-      );
-      return;
-    }
-
-    if (domainLink.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your blog domain link.')),
       );
       return;
     }
@@ -508,7 +499,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
       await _firestore.collection('users').doc(widget.user.uid).set({
         'displayName': displayName,
-        'domainLink': domainLink,
         'profileDetails': bio.isEmpty ? null : bio,
         'tags': _selectedTags,
         'location': _currentLocation,
@@ -593,15 +583,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               controller: _displayNameController,
               decoration: const InputDecoration(
                 labelText: 'Display Name',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _domainLinkController,
-              decoration: const InputDecoration(
-                labelText: 'Blog Domain Link',
-                helperText: 'https://example.com',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -819,6 +800,10 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
             icon: Icon(Icons.person),
             label: 'My Profile',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.groups),
+            label: 'Bloggers',
+          ),
         ],
       ),
     );
@@ -837,6 +822,16 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
         );
       case 1:
         return _buildProfilePage();
+      case 2:
+        return BrowsableBloggersScreen(
+          currentUserId: widget.user.uid,
+          userLocation: _currentUserLocation,
+          onLocationUpdated: (GeoPoint location) {
+            setState(() {
+              _currentUserLocation = location;
+            });
+          },
+        );
       default:
         return _buildProfilePage();
     }

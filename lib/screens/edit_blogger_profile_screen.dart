@@ -160,13 +160,6 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
       return;
     }
 
-    if (domainLink.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your blog domain link.')),
-      );
-      return;
-    }
-
     setState(() {
       _isSaving = true;
     });
@@ -175,7 +168,7 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
       await _bloggerService.updateBloggerProfile(
         widget.userId,
         name,
-        domainLink,
+        domainLink.isEmpty ? null : domainLink,
         bio.isEmpty ? null : bio,
         _location,
         _city,
