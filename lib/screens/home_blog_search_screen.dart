@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 
 enum GeoSearchMode {
   km5,
@@ -290,6 +292,22 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
   }
 
   Widget _buildBlogImage(Map<String, dynamic> data) {
+    final String? blogImageBase64 = data['blogImageBase64'] as String?;
+    if (blogImageBase64 != null && blogImageBase64.isNotEmpty) {
+      try {
+        final Uint8List bytes = base64Decode(blogImageBase64);
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(
+            bytes,
+            width: 96,
+            height: 96,
+            fit: BoxFit.cover,
+          ),
+        );
+      } catch (_) {}
+    }
+
     final String? blogImageUrl = data['blogImageUrl'] as String?;
     if (blogImageUrl != null && blogImageUrl.isNotEmpty) {
       return ClipRRect(
@@ -299,7 +317,7 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
           width: 96,
           height: 96,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildImagePlaceholder(),
+          errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(),
         ),
       );
     }
@@ -529,7 +547,7 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '$title {$domainLink}',
+                            title,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -537,6 +555,18 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          if (domainLink.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              domainLink,
+                              style: const TextStyle(
+                                color: Colors.green,
+                                fontSize: 12,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                           const SizedBox(height: 6),
                           Text(
                             description,

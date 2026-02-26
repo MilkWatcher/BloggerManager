@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import '../models/blogger_user.dart';
 import '../services/blogger_service.dart';
 
@@ -21,9 +23,8 @@ class EditBloggerProfileScreen extends StatefulWidget {
 class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
   final BloggerService _bloggerService = BloggerService();
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _domainLinkController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
-  final TextEditingController _latitudeController = TextEditingController();
-  final TextEditingController _longitudeController = TextEditingController();
 
   final List<String> _availableTags = [
     'Politics',
@@ -43,44 +44,125 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
     'Music',
   ];
 
-  late List<String> _selectedTags = [];
+  final List<String> _selectedTags = [];
   bool _isSaving = false;
+  bool _isFetchingLocation = false;
+  GeoPoint? _location;
+  String? _city;
+  String? _county;
+  String? _country;
 
   @override
   void initState() {
     super.initState();
     if (widget.blogger != null) {
       _nameController.text = widget.blogger!.displayName;
+      _domainLinkController.text = widget.blogger!.domainLink ?? '';
       _bioController.text = widget.blogger!.profileDetails ?? '';
-      _selectedTags = List.from(widget.blogger!.tags);
-
-      if (widget.blogger!.location != null) {
-        _latitudeController.text =
-            widget.blogger!.location!.latitude.toString();
-        _longitudeController.text =
-            widget.blogger!.location!.longitude.toString();
-      }
+      _selectedTags
+        ..clear()
+        ..addAll(widget.blogger!.tags);
+      _location = widget.blogger!.location;
+      _city = widget.blogger!.city;
+      _county = widget.blogger!.county;
+      _country = widget.blogger!.country;
     }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _domainLinkController.dispose();
     _bioController.dispose();
-    _latitudeController.dispose();
-    _longitudeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _refreshLocation() async {
+    setState(() {
+      _isFetchingLocation = true;
+    });
+
+    try {
+      final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('Location services are disabled.');
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw Exception('Location permission is required.');
+      }
+
+      final Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+
+      String? city;
+      String? county;
+      String? country;
+      try {
+        final List<Placemark> placemarks = await placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+        if (placemarks.isNotEmpty) {
+          final Placemark placemark = placemarks.first;
+          city = placemark.locality;
+          county = placemark.administrativeArea;
+          country = placemark.country;
+        }
+      } catch (_) {
+        city = null;
+        county = null;
+        country = null;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _location = GeoPoint(position.latitude, position.longitude);
+        _city = city;
+        _county = county;
+        _country = country;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to update location: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isFetchingLocation = false;
+        });
+      }
+    }
   }
 
   Future<void> _saveProfile() async {
     final String name = _nameController.text.trim();
+    final String domainLink = _domainLinkController.text.trim();
     final String bio = _bioController.text.trim();
-    final String latitude = _latitudeController.text.trim();
-    final String longitude = _longitudeController.text.trim();
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter your name.')),
+      );
+      return;
+    }
+
+    if (domainLink.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your blog domain link.')),
       );
       return;
     }
@@ -90,31 +172,15 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
     });
 
     try {
-      GeoPoint? location;
-      if (latitude.isNotEmpty && longitude.isNotEmpty) {
-        try {
-          location = GeoPoint(
-            double.parse(latitude),
-            double.parse(longitude),
-          );
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Invalid latitude or longitude format.'),
-            ),
-          );
-          setState(() {
-            _isSaving = false;
-          });
-          return;
-        }
-      }
-
       await _bloggerService.updateBloggerProfile(
         widget.userId,
         name,
+        domainLink,
         bio.isEmpty ? null : bio,
-        location,
+        _location,
+        _city,
+        _county,
+        _country,
         _selectedTags,
       );
 
@@ -161,6 +227,16 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
             ),
             const SizedBox(height: 16),
 
+            TextField(
+              controller: _domainLinkController,
+              decoration: const InputDecoration(
+                labelText: 'Blog Domain Link',
+                helperText: 'https://example.com',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+
             // Bio field
             TextField(
               controller: _bioController,
@@ -174,33 +250,35 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
             const SizedBox(height: 16),
 
             // Location fields
-            const Text('Location (Latitude & Longitude)',
+            const Text('Location',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _latitudeController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Latitude',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
+            Text(
+              [_city, _county, _country]
+                  .whereType<String>()
+                  .where((part) => part.isNotEmpty)
+                  .join(', ')
+                  .isEmpty
+                  ? 'No location captured yet.'
+                  : [_city, _county, _country]
+                        .whereType<String>()
+                        .where((part) => part.isNotEmpty)
+                        .join(', '),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: (_isSaving || _isFetchingLocation)
+                    ? null
+                    : _refreshLocation,
+                icon: const Icon(Icons.my_location),
+                label: Text(
+                  _isFetchingLocation
+                      ? 'Updating Location...'
+                      : 'Use Current Location',
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _longitudeController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Longitude',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
             const SizedBox(height: 16),
 

@@ -4,6 +4,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 
 class UploadBlogScreen extends StatefulWidget {
   const UploadBlogScreen({super.key});
@@ -42,10 +45,12 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
   final List<String> _selectedTags = [];
   bool _isSubmitting = false;
   bool _isFetchingLocation = false;
+  bool _isPickingImage = false;
   GeoPoint? _selectedLocation;
   String? _selectedCity;
   String? _selectedCounty;
   String? _selectedCountry;
+  Uint8List? _blogImageBytes;
 
   @override
   void dispose() {
@@ -53,6 +58,58 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
     _descriptionController.dispose();
     _domainLinkController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickBlogImage() async {
+    setState(() {
+      _isPickingImage = true;
+    });
+
+    try {
+      final XFile? file = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1280,
+        maxHeight: 1280,
+        imageQuality: 75,
+      );
+
+      if (file == null) {
+        return;
+      }
+
+      final Uint8List bytes = await file.readAsBytes();
+      if (bytes.lengthInBytes > 600000) {
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please choose an image under 600KB.')),
+        );
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _blogImageBytes = bytes;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick image: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPickingImage = false;
+        });
+      }
+    }
   }
 
   Future<void> _useCurrentLocation() async {
@@ -170,6 +227,8 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
     final GeoPoint location = _selectedLocation!;
     final String googleMapsUrl =
         'https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}';
+    final String? blogImageBase64 =
+      _blogImageBytes == null ? null : base64Encode(_blogImageBytes!);
 
     setState(() {
       _isSubmitting = true;
@@ -185,6 +244,7 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
         'city': _selectedCity,
         'county': _selectedCounty,
         'country': _selectedCountry,
+        'blogImageBase64': blogImageBase64,
         'googleMapsUrl': googleMapsUrl,
         'uploadedAt': FieldValue.serverTimestamp(),
         'uploadedBy': user.uid,
@@ -247,6 +307,34 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
                 labelText: 'Blog Link',
                 border: OutlineInputBorder(),
                 helperText: 'https://example.com',
+              ),
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Container(
+                width: 140,
+                height: 100,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: _blogImageBytes == null
+                    ? const Icon(Icons.image_outlined, size: 36)
+                    : Image.memory(_blogImageBytes!, fit: BoxFit.cover),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: (_isSubmitting || _isPickingImage)
+                    ? null
+                    : _pickBlogImage,
+                icon: const Icon(Icons.upload),
+                label: Text(
+                  _isPickingImage ? 'Uploading...' : 'Upload Blog Image',
+                ),
               ),
             ),
             const SizedBox(height: 16),

@@ -313,6 +313,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     databaseId: 'default',
   );
   final TextEditingController _displayNameController = TextEditingController();
+  final TextEditingController _domainLinkController = TextEditingController();
+  final TextEditingController _bioController = TextEditingController();
   final List<String> _availableTags = [
     'Politics',
     'Food',
@@ -344,6 +346,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   @override
   void dispose() {
     _displayNameController.dispose();
+    _domainLinkController.dispose();
+    _bioController.dispose();
     super.dispose();
   }
 
@@ -485,6 +489,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   Future<void> _completeProfile() async {
     final String displayName = _displayNameController.text.trim();
+    final String domainLink = _domainLinkController.text.trim();
+    final String bio = _bioController.text.trim();
 
     if (displayName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -496,6 +502,13 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     if (_selectedTags.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select at least one main content tag.')),
+      );
+      return;
+    }
+
+    if (domainLink.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your blog domain link.')),
       );
       return;
     }
@@ -517,6 +530,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
       await _firestore.collection('users').doc(widget.user.uid).set({
         'displayName': displayName,
+        'domainLink': domainLink,
+        'profileDetails': bio.isEmpty ? null : bio,
         'tags': _selectedTags,
         'location': _currentLocation,
         'city': _city,
@@ -596,6 +611,24 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               controller: _displayNameController,
               decoration: const InputDecoration(
                 labelText: 'Display Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _domainLinkController,
+              decoration: const InputDecoration(
+                labelText: 'Blog Domain Link',
+                helperText: 'https://example.com',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _bioController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Bio / Profile Details',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -690,7 +723,6 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
     app: Firebase.app(),
     databaseId: 'default',
   );
-  final TextEditingController _areaCodeController = TextEditingController();
   final List<String> _availableTags = [
     'Politics',
     'Food',
@@ -722,13 +754,10 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
 
   @override
   void dispose() {
-    _areaCodeController.dispose();
     super.dispose();
   }
 
   Future<void> _saveProfile() async {
-    final String areaCode = _areaCodeController.text.trim();
-
     setState(() {
       _isSavingProfile = true;
     });
@@ -736,7 +765,6 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
     try {
       await _firestore.collection('users').doc(widget.user.uid).set({
         'tags': _selectedTags,
-        'areaCode': areaCode.isEmpty ? null : areaCode,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -859,7 +887,6 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
         }
 
         if (!_hasSeededProfile) {
-          _areaCodeController.text = blogger.areaCode ?? '';
           _selectedTags
             ..clear()
             ..addAll(blogger.tags);
@@ -910,12 +937,11 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
                           ),
                         ),
                       ],
-                      if (blogger.city != null ||
-                          blogger.county != null ||
-                          blogger.country != null) ...[
+                      if ((blogger.county != null && blogger.county!.isNotEmpty) ||
+                          (blogger.country != null && blogger.country!.isNotEmpty)) ...[
                         const SizedBox(height: 8),
                         Text(
-                          [blogger.city, blogger.county, blogger.country]
+                          [blogger.county, blogger.country]
                               .whereType<String>()
                               .where((part) => part.isNotEmpty)
                               .join(', '),
@@ -969,23 +995,6 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
                     },
                   );
                 }).toList(),
-              ),
-              const SizedBox(height: 16),
-
-              const Text(
-                'Eircode / Area Code',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _areaCodeController,
-                decoration: const InputDecoration(
-                  hintText: 'e.g. D02 X285',
-                  border: OutlineInputBorder(),
-                ),
               ),
               const SizedBox(height: 16),
 

@@ -26,15 +26,23 @@ class BloggerService {
   Future<void> updateBloggerProfile(
     String userId,
     String displayName,
+    String domainLink,
     String? profileDetails,
     GeoPoint? location,
+    String? city,
+    String? county,
+    String? country,
     List<String> tags,
   ) async {
     try {
       await _firestore.collection(_usersCollection).doc(userId).set({
         'displayName': displayName,
+        'domainLink': domainLink,
         'profileDetails': profileDetails,
         'location': location,
+        'city': city,
+        'county': county,
+        'country': country,
         'tags': tags,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
