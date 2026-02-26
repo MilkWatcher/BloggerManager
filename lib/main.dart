@@ -16,6 +16,19 @@ import 'screens/edit_blogger_profile_screen.dart';
 import 'screens/home_blog_search_screen.dart';
 import 'screens/upload_blog_screen.dart';
 
+Widget _buildLogoTitle(String text) {
+  return Row(
+    children: [
+      Image.asset(
+        'lib/images/blogDB.png',
+        height: 26,
+      ),
+      const SizedBox(width: 8),
+      Text(text),
+    ],
+  );
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final FirebaseApp app = await Firebase.initializeApp(
@@ -34,6 +47,12 @@ class MyApp extends StatelessWidget {
       title: 'Blogger Manager',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        scaffoldBackgroundColor: const Color(0xFFF3EEFF),
+        cardTheme: const CardThemeData(
+          color: Colors.white,
+          elevation: 1.5,
+          surfaceTintColor: Colors.white,
+        ),
       ),
       home: const AuthGate(),
     );
@@ -202,7 +221,9 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isLoginMode ? 'Login to Blogger Manager' : 'Join Blogger Manager'),
+        title: _buildLogoTitle(
+          _isLoginMode ? 'Login to Blogger Manager' : 'Join Blogger Manager',
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -560,7 +581,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Complete Your Profile'),
+        title: _buildLogoTitle('Complete Your Profile'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -730,26 +751,6 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
     app: Firebase.app(),
     databaseId: 'default',
   );
-  final List<String> _availableTags = [
-    'Politics',
-    'Food',
-    'Cats',
-    'Travel',
-    'Technology',
-    'Business',
-    'Lifestyle',
-    'Sports',
-    'Health',
-    'Entertainment',
-    'Education',
-    'DIY',
-    'Fashion',
-    'Photography',
-    'Music',
-  ];
-  final List<String> _selectedTags = [];
-  bool _isSavingProfile = false;
-  bool _hasSeededProfile = false;
   int _selectedIndex = 0;
   GeoPoint? _currentUserLocation;
 
@@ -764,46 +765,11 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
     super.dispose();
   }
 
-  Future<void> _saveProfile() async {
-    setState(() {
-      _isSavingProfile = true;
-    });
-
-    try {
-      await _firestore.collection('users').doc(widget.user.uid).set({
-        'tags': _selectedTags,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile details saved.')),
-      );
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save profile: $error')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSavingProfile = false;
-        });
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Blogger Manager'),
+        title: _buildLogoTitle('Blogger Manager'),
         actions: <Widget>[
           IconButton(
             onPressed: () async {
@@ -907,13 +873,6 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
           profileImageBytes = null;
         }
 
-        if (!_hasSeededProfile) {
-          _selectedTags
-            ..clear()
-            ..addAll(blogger.tags);
-          _hasSeededProfile = true;
-        }
-
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1000,33 +959,11 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _availableTags.map((tag) {
-                  final bool isSelected = _selectedTags.contains(tag);
-                  return FilterChip(
-                    label: Text(tag),
-                    selected: isSelected,
-                    onSelected: (bool selected) {
-                      setState(() {
-                        if (selected) {
-                          _selectedTags.add(tag);
-                        } else {
-                          _selectedTags.remove(tag);
-                        }
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 16),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSavingProfile ? null : _saveProfile,
-                  child: Text(
-                    _isSavingProfile ? 'Saving...' : 'Save Profile Details',
-                  ),
-                ),
+                children: blogger.tags
+                    .map<Widget>(
+                      (String tag) => Chip(label: Text(tag)),
+                    )
+                    .toList(),
               ),
               const SizedBox(height: 16),
 
@@ -1046,9 +983,7 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
                     if (!mounted) {
                       return;
                     }
-                    setState(() {
-                      _hasSeededProfile = false;
-                    });
+                    setState(() {});
                   },
                   icon: const Icon(Icons.edit),
                   label: const Text('Edit Profile'),

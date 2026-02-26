@@ -22,15 +22,15 @@ class BloggerDetailScreen extends StatelessWidget {
       try {
         final Uint8List bytes = base64Decode(profileImageBase64);
         return CircleAvatar(
-          radius: 48,
+          radius: 40,
           backgroundImage: MemoryImage(bytes),
         );
       } catch (_) {}
     }
 
     return const CircleAvatar(
-      radius: 48,
-      child: Icon(Icons.person, size: 42),
+      radius: 40,
+      child: Icon(Icons.person, size: 34),
     );
   }
 
@@ -215,7 +215,10 @@ class BloggerDetailScreen extends StatelessWidget {
             );
           }
 
-          final String displayName = data['displayName'] as String? ?? 'Unnamed Blogger';
+            final String displayName =
+              (data['displayName'] as String? ?? '').trim().isNotEmpty
+                ? (data['displayName'] as String).trim()
+                : 'Anonymous Blogger';
           final String city = data['city'] as String? ?? '';
           final String county = data['county'] as String? ?? '';
           final String country = data['country'] as String? ?? '';
@@ -225,15 +228,15 @@ class BloggerDetailScreen extends StatelessWidget {
           final String? profileDetails = data['profileDetails'] as String?;
           final List<String> tags =
               List<String>.from(data['tags'] as List<dynamic>? ?? <dynamic>[]);
-            final String email = data['email'] as String? ?? '';
-            final String xUrl = data['xUrl'] as String? ?? '';
-            final String instagramUrl = data['instagramUrl'] as String? ?? '';
-            final String facebookUrl = data['facebookUrl'] as String? ?? '';
+          final String email = data['email'] as String? ?? '';
+          final String xUrl = data['xUrl'] as String? ?? '';
+          final String instagramUrl = data['instagramUrl'] as String? ?? '';
+          final String facebookUrl = data['facebookUrl'] as String? ?? '';
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Card(
                   child: Padding(

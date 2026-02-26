@@ -337,21 +337,84 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
     );
   }
 
-  Widget _buildAuthorMiniAvatar(Map<String, dynamic> data) {
-    final String? authorImageBase64 = data['authorProfileImageBase64'] as String?;
+  Widget _buildAuthorMiniAvatar({
+    String? authorImageBase64,
+    double radius = 14,
+  }) {
     if (authorImageBase64 != null && authorImageBase64.isNotEmpty) {
       try {
         final Uint8List bytes = base64Decode(authorImageBase64);
         return CircleAvatar(
-          radius: 12,
+          radius: radius,
           backgroundImage: MemoryImage(bytes),
         );
       } catch (_) {}
     }
 
-    return const CircleAvatar(
-      radius: 12,
-      child: Icon(Icons.person, size: 14),
+    return CircleAvatar(
+      radius: radius,
+      child: const Icon(Icons.person, size: 16),
+    );
+  }
+
+  Widget _buildAuthorIdentity(Map<String, dynamic> data) {
+    final String embeddedName = (data['authorDisplayName'] as String? ?? '').trim();
+    final String? uploadedBy = data['uploadedBy'] as String?;
+    final String? embeddedImage = data['authorProfileImageBase64'] as String?;
+
+    if (uploadedBy == null || uploadedBy.isEmpty) {
+      final String name = embeddedName.isEmpty ? 'Anonymous Blogger' : embeddedName;
+      return Row(
+        children: [
+          _buildAuthorMiniAvatar(authorImageBase64: embeddedImage),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'by: $name',
+              style: const TextStyle(fontSize: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: _firestore.collection('users').doc(uploadedBy).snapshots(),
+      builder: (
+        BuildContext context,
+        AsyncSnapshot<DocumentSnapshot<Map<String, dynamic>>> snapshot,
+      ) {
+        final Map<String, dynamic>? userData = snapshot.data?.data();
+        final String userName = (userData?['displayName'] as String? ?? '').trim();
+        final String? userImage = userData?['profileImageBase64'] as String?;
+
+        final String resolvedName = userName.isNotEmpty
+            ? userName
+            : (embeddedName.isNotEmpty && embeddedName != uploadedBy
+                  ? embeddedName
+                  : 'Anonymous Blogger');
+
+        final String? resolvedImage = (userImage != null && userImage.isNotEmpty)
+            ? userImage
+            : embeddedImage;
+
+        return Row(
+          children: [
+            _buildAuthorMiniAvatar(authorImageBase64: resolvedImage),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'by: $resolvedName',
+                style: const TextStyle(fontSize: 12),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -550,9 +613,6 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
             final String city = data['city'] as String? ?? '';
             final String county = data['county'] as String? ?? '';
             final String country = data['country'] as String? ?? '';
-            final String authorDisplayName =
-              data['authorDisplayName'] as String? ??
-              (data['uploadedBy'] as String? ?? 'Unknown Blogger');
             final List<String> tags =
               List<String>.from(data['tags'] as List<dynamic>? ?? <dynamic>[]);
             final String cityCounty =
@@ -597,20 +657,7 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              _buildAuthorMiniAvatar(data),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  'by: $authorDisplayName',
-                                  style: const TextStyle(fontSize: 12),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
+                          _buildAuthorIdentity(data),
                           if (domainLink.isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Text(

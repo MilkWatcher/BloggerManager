@@ -285,7 +285,7 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
               ? (authorData!['displayName'] as String)
               : ((user.displayName ?? '').trim().isNotEmpty
                     ? user.displayName!.trim()
-                    : 'Unknown Blogger');
+              : 'Anonymous Blogger');
       final String? authorProfileImageBase64 =
           authorData?['profileImageBase64'] as String?;
 

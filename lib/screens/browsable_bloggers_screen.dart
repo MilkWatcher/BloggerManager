@@ -347,15 +347,15 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
       try {
         final Uint8List bytes = base64Decode(profileImageBase64);
         return CircleAvatar(
-          radius: 30,
+          radius: 22,
           backgroundImage: MemoryImage(bytes),
         );
       } catch (_) {}
     }
 
     return const CircleAvatar(
-      radius: 30,
-      child: Icon(Icons.person, size: 28),
+      radius: 22,
+      child: Icon(Icons.person, size: 20),
     );
   }
 
@@ -439,7 +439,7 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
               const SizedBox(height: 6),
               Text(
                 'Tags: $tagsSummary',
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 12),
               ),
@@ -499,7 +499,7 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
                   crossAxisCount: crossAxisCount,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
-                  childAspectRatio: 2.05,
+                  mainAxisExtent: 126,
                 ),
                 itemCount: filteredDocs.length,
                 itemBuilder: (BuildContext context, int index) {
