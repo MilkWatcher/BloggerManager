@@ -260,70 +260,104 @@ class _AuthScreenState extends State<AuthScreen> {
           _isLoginMode ? 'Login to Blogger Manager' : 'Join Blogger Manager',
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              if (!_isLoginMode) ...<Widget>[
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _confirmPasswordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Confirm Password',
-                    border: OutlineInputBorder(),
+      body: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 480),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            Text(
+                              _isLoginMode ? 'Welcome back' : 'Create your account',
+                              textAlign: TextAlign.left,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _isLoginMode
+                                  ? 'Sign in to continue to Blogger Manager.'
+                                  : 'Sign up to get started with Blogger Manager.',
+                              textAlign: TextAlign.left,
+                            ),
+                            const SizedBox(height: 16),
+                            TextField(
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              textAlign: TextAlign.left,
+                              decoration: const InputDecoration(
+                                labelText: 'Email',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _passwordController,
+                              obscureText: true,
+                              textAlign: TextAlign.left,
+                              decoration: const InputDecoration(
+                                labelText: 'Password',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                            if (!_isLoginMode) ...<Widget>[
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _confirmPasswordController,
+                                obscureText: true,
+                                textAlign: TextAlign.left,
+                                decoration: const InputDecoration(
+                                  labelText: 'Confirm Password',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _isSubmitting ? null : _submitAuth,
+                                child: Text(
+                                  _isSubmitting
+                                      ? 'Submitting...'
+                                      : (_isLoginMode ? 'Login' : 'Sign Up'),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : () {
+                                      setState(() {
+                                        _isLoginMode = !_isLoginMode;
+                                      });
+                                    },
+                              child: Text(
+                                _isLoginMode
+                                    ? 'Need an account? Sign Up'
+                                    : 'Already have an account? Login',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ],
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitAuth,
-                  child: Text(
-                    _isSubmitting
-                        ? 'Submitting...'
-                        : (_isLoginMode ? 'Login' : 'Sign Up'),
-                  ),
-                ),
               ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: _isSubmitting
-                    ? null
-                    : () {
-                        setState(() {
-                          _isLoginMode = !_isLoginMode;
-                        });
-                      },
-                child: Text(
-                  _isLoginMode
-                      ? 'Need an account? Sign Up'
-                      : 'Already have an account? Login',
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
