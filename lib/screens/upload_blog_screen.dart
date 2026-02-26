@@ -10,7 +10,14 @@ import 'dart:typed_data';
 import '../services/google_geocoding_service.dart';
 
 class UploadBlogScreen extends StatefulWidget {
-  const UploadBlogScreen({super.key});
+  const UploadBlogScreen({
+    this.blogId,
+    this.initialBlogData,
+    super.key,
+  });
+
+  final String? blogId;
+  final Map<String, dynamic>? initialBlogData;
 
   @override
   State<UploadBlogScreen> createState() => _UploadBlogScreenState();
@@ -54,6 +61,40 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
   String? _selectedCounty;
   String? _selectedCountry;
   Uint8List? _blogImageBytes;
+
+  bool get _isEditMode => widget.blogId != null;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final Map<String, dynamic>? initialData = widget.initialBlogData;
+    if (initialData == null) {
+      return;
+    }
+
+    _titleController.text = initialData['title'] as String? ?? '';
+    _descriptionController.text = initialData['description'] as String? ?? '';
+    _domainLinkController.text = initialData['domainLink'] as String? ?? '';
+
+    _selectedTags
+      ..clear()
+      ..addAll(List<String>.from(initialData['tags'] as List<dynamic>? ?? <dynamic>[]));
+
+    _selectedLocation = initialData['location'] as GeoPoint?;
+    _selectedCity = initialData['city'] as String?;
+    _selectedCounty = initialData['county'] as String?;
+    _selectedCountry = initialData['country'] as String?;
+
+    final String? blogImageBase64 = initialData['blogImageBase64'] as String?;
+    if (blogImageBase64 != null && blogImageBase64.isNotEmpty) {
+      try {
+        _blogImageBytes = base64Decode(blogImageBase64);
+      } catch (_) {
+        _blogImageBytes = null;
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -236,7 +277,7 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
     });
 
     try {
-      await _firestore.collection('blogs').add({
+      final Map<String, dynamic> blogPayload = {
         'title': title,
         'description': description,
         'domainLink': domainLink,
@@ -246,19 +287,35 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
         'county': _selectedCounty,
         'country': _selectedCountry,
         'cityCounty': [_selectedCity, _selectedCounty]
-          .whereType<String>()
-          .where((String part) => part.isNotEmpty)
-          .join(', '),
+            .whereType<String>()
+            .where((String part) => part.isNotEmpty)
+            .join(', '),
         'blogImageBase64': blogImageBase64,
         'googleMapsUrl': googleMapsUrl,
-        'uploadedAt': FieldValue.serverTimestamp(),
         'uploadedBy': user.uid,
-      });
+      };
+
+      if (_isEditMode) {
+        blogPayload['updatedAt'] = FieldValue.serverTimestamp();
+        await _firestore.collection('blogs').doc(widget.blogId).set(
+              blogPayload,
+              SetOptions(merge: true),
+            );
+      } else {
+        blogPayload['uploadedAt'] = FieldValue.serverTimestamp();
+        await _firestore.collection('blogs').add(blogPayload);
+      }
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Blog uploaded successfully.')),
+        SnackBar(
+          content: Text(
+            _isEditMode
+                ? 'Blog updated successfully.'
+                : 'Blog uploaded successfully.',
+          ),
+        ),
       );
       Navigator.of(context).pop();
     } catch (error) {
@@ -282,7 +339,7 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Upload Blog'),
+        title: Text(_isEditMode ? 'Edit Blog' : 'Upload Blog'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -405,7 +462,11 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _submitBlog,
-                child: Text(_isSubmitting ? 'Uploading...' : 'Upload Blog'),
+                child: Text(
+                  _isSubmitting
+                      ? (_isEditMode ? 'Saving...' : 'Uploading...')
+                      : (_isEditMode ? 'Save Blog Changes' : 'Upload Blog'),
+                ),
               ),
             ),
           ],

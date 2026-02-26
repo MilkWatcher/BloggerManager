@@ -44,11 +44,6 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final FirebaseFirestore firestore = FirebaseFirestore.instanceFor(
-      app: Firebase.app(),
-      databaseId: 'default',
-    );
-
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (BuildContext context, AsyncSnapshot<User?> snapshot) {
@@ -59,29 +54,7 @@ class AuthGate extends StatelessWidget {
         }
 
         if (snapshot.hasData && snapshot.data != null) {
-          return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: firestore.collection('users').doc(snapshot.data!.uid).snapshots(),
-            builder: (
-              BuildContext context,
-              AsyncSnapshot<DocumentSnapshot<Map<String, dynamic>>> userSnapshot,
-            ) {
-              if (userSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
-              }
-
-              final Map<String, dynamic>? userData = userSnapshot.data?.data();
-              final bool profileSetupCompleted =
-                  userData?['profileSetupCompleted'] as bool? ?? false;
-
-              if (profileSetupCompleted) {
-                return ProfileDashboardScreen(user: snapshot.data!);
-              }
-
-              return CompleteProfileScreen(user: snapshot.data!);
-            },
-          );
+          return ProfileDashboardScreen(user: snapshot.data!);
         }
 
         return const AuthScreen();
@@ -1021,8 +994,8 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
+                  onPressed: () async {
+                    await Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => EditBloggerProfileScreen(
                           userId: widget.user.uid,
@@ -1030,6 +1003,12 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
                         ),
                       ),
                     );
+                    if (!mounted) {
+                      return;
+                    }
+                    setState(() {
+                      _hasSeededProfile = false;
+                    });
                   },
                   icon: const Icon(Icons.edit),
                   label: const Text('Edit Profile'),
@@ -1088,6 +1067,7 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
           physics: const NeverScrollableScrollPhysics(),
           itemBuilder: (BuildContext context, int index) {
             final Map<String, dynamic> data = docs[index].data();
+            final String blogId = docs[index].id;
             final String title = data['title'] as String? ?? '';
             final String description = data['description'] as String? ?? '';
             final String domainLink = data['domainLink'] as String? ?? '';
@@ -1140,6 +1120,77 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
                             .toList(),
                       ),
                     ],
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => UploadBlogScreen(
+                                  blogId: blogId,
+                                  initialBlogData: data,
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.edit),
+                          label: const Text('Edit Blog'),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            final ScaffoldMessengerState messenger =
+                                ScaffoldMessenger.of(context);
+                            final bool? shouldDelete = await showDialog<bool>(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: const Text('Delete Blog'),
+                                  content: const Text(
+                                    'Are you sure you want to delete this blog post?',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () => Navigator.of(context).pop(true),
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+
+                            if (shouldDelete != true) {
+                              return;
+                            }
+
+                            try {
+                              await _firestore.collection('blogs').doc(blogId).delete();
+                              if (!mounted) {
+                                return;
+                              }
+                              messenger.showSnackBar(
+                                const SnackBar(content: Text('Blog deleted.')),
+                              );
+                            } catch (error) {
+                              if (!mounted) {
+                                return;
+                              }
+                              messenger.showSnackBar(
+                                SnackBar(content: Text('Failed to delete blog: $error')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.delete),
+                          label: const Text('Delete Blog'),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
