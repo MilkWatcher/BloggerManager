@@ -733,26 +733,34 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
   Widget build(BuildContext context) {
     final GeoPoint? userPoint = _currentUserLocation;
 
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        if (constraints.maxWidth < 900) {
-          return Column(
-            children: [
-              Expanded(flex: 3, child: _buildFiltersPanel(userPoint)),
-              const Divider(height: 1),
-              Expanded(flex: 7, child: _buildBlogListPane()),
-            ],
-          );
-        }
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1200),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              if (constraints.maxWidth < 900) {
+                return Column(
+                  children: [
+                    Expanded(flex: 3, child: _buildFiltersPanel(userPoint)),
+                    const Divider(height: 1),
+                    Expanded(flex: 7, child: _buildBlogListPane()),
+                  ],
+                );
+              }
 
-        return Row(
-          children: [
-            Expanded(flex: 3, child: _buildFiltersPanel(userPoint)),
-            const VerticalDivider(width: 1),
-            Expanded(flex: 7, child: _buildBlogListPane()),
-          ],
-        );
-      },
+              return Row(
+                children: [
+                  Expanded(flex: 3, child: _buildFiltersPanel(userPoint)),
+                  const VerticalDivider(width: 1),
+                  Expanded(flex: 7, child: _buildBlogListPane()),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
     );
   }
 }

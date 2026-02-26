@@ -9,6 +9,7 @@ import 'package:geolocator/geolocator.dart';
 import 'blogger_detail_screen.dart';
 
 enum BloggerGeoSearchMode {
+  all,
   km5,
   km10,
   km25,
@@ -59,7 +60,7 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
   ];
 
   final List<String> _selectedTags = [];
-  BloggerGeoSearchMode _geoSearchMode = BloggerGeoSearchMode.km10;
+  BloggerGeoSearchMode _geoSearchMode = BloggerGeoSearchMode.all;
   GeoPoint? _currentUserLocation;
   bool _isUpdatingLocation = false;
 
@@ -98,6 +99,8 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
 
   double? _distanceKmForMode(BloggerGeoSearchMode mode) {
     switch (mode) {
+      case BloggerGeoSearchMode.all:
+        return null;
       case BloggerGeoSearchMode.km5:
         return 5;
       case BloggerGeoSearchMode.km10:
@@ -240,6 +243,15 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
+              ChoiceChip(
+                label: const Text('All'),
+                selected: _geoSearchMode == BloggerGeoSearchMode.all,
+                onSelected: (_) {
+                  setState(() {
+                    _geoSearchMode = BloggerGeoSearchMode.all;
+                  });
+                },
+              ),
               ChoiceChip(
                 label: const Text('< 5 km'),
                 selected: _geoSearchMode == BloggerGeoSearchMode.km5,
@@ -459,7 +471,12 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
   Widget build(BuildContext context) {
     final double? maxDistanceKm = _distanceKmForMode(_geoSearchMode);
 
-    return LayoutBuilder(
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1200),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final bool isDesktop = constraints.maxWidth >= 900;
 
@@ -535,6 +552,9 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
           ],
         );
       },
+          ),
+        ),
+      ),
     );
   }
 }

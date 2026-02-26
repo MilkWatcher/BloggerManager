@@ -29,6 +29,13 @@ Widget _buildLogoTitle(String text) {
   );
 }
 
+Widget _buildLogoOnlyTitle() {
+  return Image.asset(
+    'lib/images/blogDB.png',
+    height: 30,
+  );
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final FirebaseApp app = await Firebase.initializeApp(
@@ -769,7 +776,7 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: _buildLogoTitle('Blogger Manager'),
+        title: _buildLogoOnlyTitle(),
         actions: <Widget>[
           IconButton(
             onPressed: () async {
@@ -873,134 +880,180 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
           profileImageBytes = null;
         }
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header card
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
+        final String locationText = [
+          blogger.cityCounty,
+          [blogger.county, blogger.country]
+              .whereType<String>()
+              .where((String part) => part.isNotEmpty)
+              .join(', '),
+        ].where((String? part) => part != null && part.trim().isNotEmpty).cast<String>().firstWhere(
+              (String value) => value.trim().isNotEmpty,
+              orElse: () => 'Location not set',
+            );
+
+        return LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1140),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Center(
-                        child: CircleAvatar(
-                          radius: 32,
-                          backgroundImage: profileImageBytes == null
-                              ? null
-                              : MemoryImage(profileImageBytes),
-                          child: profileImageBytes == null
-                              ? const Icon(Icons.person, size: 28)
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        blogger.displayName,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        blogger.email,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      if (blogger.domainLink != null &&
-                          blogger.domainLink!.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          blogger.domainLink!,
-                          style: const TextStyle(
-                            color: Colors.blue,
-                            decoration: TextDecoration.underline,
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CircleAvatar(
+                                radius: 40,
+                                backgroundImage: profileImageBytes == null
+                                    ? null
+                                    : MemoryImage(profileImageBytes),
+                                child: profileImageBytes == null
+                                    ? const Icon(Icons.person, size: 34)
+                                    : null,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      blogger.displayName.isEmpty
+                                          ? 'Anonymous Blogger'
+                                          : blogger.displayName,
+                                      style: Theme.of(context).textTheme.titleLarge,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(blogger.email),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Domain: ${blogger.domainLink == null || blogger.domainLink!.isEmpty ? 'Not provided' : blogger.domainLink!}',
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(locationText),
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'Socials',
+                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        if (blogger.xUrl != null && blogger.xUrl!.isNotEmpty)
+                                          Chip(label: Text('X')),
+                                        if (blogger.instagramUrl != null &&
+                                            blogger.instagramUrl!.isNotEmpty)
+                                          Chip(label: Text('Instagram')),
+                                        if (blogger.facebookUrl != null &&
+                                            blogger.facebookUrl!.isNotEmpty)
+                                          Chip(label: Text('Facebook')),
+                                        if ((blogger.xUrl == null || blogger.xUrl!.isEmpty) &&
+                                            (blogger.instagramUrl == null ||
+                                                blogger.instagramUrl!.isEmpty) &&
+                                            (blogger.facebookUrl == null ||
+                                                blogger.facebookUrl!.isEmpty))
+                                          const Text('No socials shared yet.'),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                      if ((blogger.county != null && blogger.county!.isNotEmpty) ||
-                          (blogger.country != null && blogger.country!.isNotEmpty)) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          [blogger.county, blogger.country]
-                              .whereType<String>()
-                              .where((part) => part.isNotEmpty)
-                              .join(', '),
+                      ),
+                      const SizedBox(height: 16),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Bio',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                (blogger.profileDetails ?? '').trim().isEmpty
+                                    ? 'No bio added yet.'
+                                    : blogger.profileDetails!,
+                              ),
+                              const SizedBox(height: 12),
+                              Card(
+                                margin: EdgeInsets.zero,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Main Tags',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: blogger.tags
+                                            .map<Widget>((String tag) => Chip(label: Text(tag)))
+                                            .toList(),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => EditBloggerProfileScreen(
+                                  userId: widget.user.uid,
+                                  blogger: blogger,
+                                ),
+                              ),
+                            );
+                            if (!mounted) {
+                              return;
+                            }
+                            setState(() {});
+                          },
+                          icon: const Icon(Icons.edit),
+                          label: const Text('Edit Profile'),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'My Uploaded Blogs',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildMyBlogsSection(),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-
-              // Bio section
-              if (blogger.profileDetails != null &&
-                  blogger.profileDetails!.isNotEmpty) ...[
-                const Text(
-                  'Bio',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(blogger.profileDetails!),
-                const SizedBox(height: 16),
-              ],
-
-              const Text(
-                'Main Tags',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: blogger.tags
-                    .map<Widget>(
-                      (String tag) => Chip(label: Text(tag)),
-                    )
-                    .toList(),
-              ),
-              const SizedBox(height: 16),
-
-              // Edit profile button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => EditBloggerProfileScreen(
-                          userId: widget.user.uid,
-                          blogger: blogger,
-                        ),
-                      ),
-                    );
-                    if (!mounted) {
-                      return;
-                    }
-                    setState(() {});
-                  },
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Edit Profile'),
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'My Uploaded Blogs',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _buildMyBlogsSection(),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -1048,123 +1101,162 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
             final String domainLink = data['domainLink'] as String? ?? '';
             final Timestamp? uploadedAt = data['uploadedAt'] as Timestamp?;
             final List<dynamic> tags = data['tags'] as List<dynamic>? ?? [];
+            final String? blogImageBase64 = data['blogImageBase64'] as String?;
+
+            Uint8List? blogImageBytes;
+            if (blogImageBase64 != null && blogImageBase64.isNotEmpty) {
+              try {
+                blogImageBytes = base64Decode(blogImageBase64);
+              } catch (_) {
+                blogImageBytes = null;
+              }
+            }
 
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: Column(
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                    if (description.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(description),
-                    ],
-                    if (domainLink.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        domainLink,
-                        style: const TextStyle(
-                          color: Colors.blue,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ],
-                    if (uploadedAt != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        'Uploaded: ${uploadedAt.toDate().toLocal().toString().split('.').first}',
-                      ),
-                    ],
-                    if (tags.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: tags
-                            .map<Widget>(
-                              (dynamic tag) => Chip(label: Text('$tag')),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: blogImageBytes == null
+                          ? Container(
+                              width: 92,
+                              height: 92,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                              alignment: Alignment.center,
+                              child: const Icon(Icons.image_outlined),
                             )
-                            .toList(),
-                      ),
-                    ],
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => UploadBlogScreen(
-                                  blogId: blogId,
-                                  initialBlogData: data,
-                                ),
+                          : Image.memory(
+                              blogImageBytes,
+                              width: 92,
+                              height: 92,
+                              fit: BoxFit.cover,
+                            ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                          if (description.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(description),
+                          ],
+                          if (domainLink.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              domainLink,
+                              style: const TextStyle(
+                                color: Colors.blue,
+                                decoration: TextDecoration.underline,
                               ),
-                            );
-                          },
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Edit Blog'),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: () async {
-                            final ScaffoldMessengerState messenger =
-                                ScaffoldMessenger.of(context);
-                            final bool? shouldDelete = await showDialog<bool>(
-                              context: context,
-                              builder: (BuildContext context) {
-                                return AlertDialog(
-                                  title: const Text('Delete Blog'),
-                                  content: const Text(
-                                    'Are you sure you want to delete this blog post?',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.of(context).pop(false),
-                                      child: const Text('Cancel'),
+                            ),
+                          ],
+                          if (uploadedAt != null) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              'Uploaded: ${uploadedAt.toDate().toLocal().toString().split('.').first}',
+                            ),
+                          ],
+                          if (tags.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: tags
+                                  .map<Widget>(
+                                    (dynamic tag) => Chip(label: Text('$tag')),
+                                  )
+                                  .toList(),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () async {
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) => UploadBlogScreen(
+                                        blogId: blogId,
+                                        initialBlogData: data,
+                                      ),
                                     ),
-                                    ElevatedButton(
-                                      onPressed: () => Navigator.of(context).pop(true),
-                                      child: const Text('Delete'),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
+                                  );
+                                },
+                                icon: const Icon(Icons.edit),
+                                label: const Text('Edit Blog'),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: () async {
+                                  final ScaffoldMessengerState messenger =
+                                      ScaffoldMessenger.of(context);
+                                  final bool? shouldDelete = await showDialog<bool>(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: const Text('Delete Blog'),
+                                        content: const Text(
+                                          'Are you sure you want to delete this blog post?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(true),
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
 
-                            if (shouldDelete != true) {
-                              return;
-                            }
+                                  if (shouldDelete != true) {
+                                    return;
+                                  }
 
-                            try {
-                              await _firestore.collection('blogs').doc(blogId).delete();
-                              if (!mounted) {
-                                return;
-                              }
-                              messenger.showSnackBar(
-                                const SnackBar(content: Text('Blog deleted.')),
-                              );
-                            } catch (error) {
-                              if (!mounted) {
-                                return;
-                              }
-                              messenger.showSnackBar(
-                                SnackBar(content: Text('Failed to delete blog: $error')),
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.delete),
-                          label: const Text('Delete Blog'),
-                        ),
-                      ],
+                                  try {
+                                    await _firestore.collection('blogs').doc(blogId).delete();
+                                    if (!mounted) {
+                                      return;
+                                    }
+                                    messenger.showSnackBar(
+                                      const SnackBar(content: Text('Blog deleted.')),
+                                    );
+                                  } catch (error) {
+                                    if (!mounted) {
+                                      return;
+                                    }
+                                    messenger.showSnackBar(
+                                      SnackBar(content: Text('Failed to delete blog: $error')),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.delete),
+                                label: const Text('Delete Blog'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
