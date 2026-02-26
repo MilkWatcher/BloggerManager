@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:developer' as developer;
@@ -428,18 +428,21 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     });
 
     try {
-      final XFile? file = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 75,
+      final FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+        withData: true,
       );
 
-      if (file == null) {
+      if (result == null || result.files.isEmpty) {
         return;
       }
 
-      final Uint8List bytes = await file.readAsBytes();
+      final Uint8List? bytes = result.files.single.bytes;
+      if (bytes == null) {
+        throw Exception('Unable to read selected image bytes.');
+      }
+
       if (bytes.lengthInBytes > 500000) {
         if (!mounted) {
           return;
@@ -762,7 +765,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Allow location access so we can support geographic discovery.',
+              'Allow location to find blogs and bloggers around you!',
               style: TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 12),
