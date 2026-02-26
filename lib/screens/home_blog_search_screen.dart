@@ -603,7 +603,7 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
-                                  authorDisplayName,
+                                  'by: $authorDisplayName',
                                   style: const TextStyle(fontSize: 12),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,

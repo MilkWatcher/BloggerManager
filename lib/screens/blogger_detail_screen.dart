@@ -9,10 +9,12 @@ import 'package:url_launcher/url_launcher.dart';
 class BloggerDetailScreen extends StatelessWidget {
   const BloggerDetailScreen({
     required this.bloggerId,
+    this.asDialog = false,
     super.key,
   });
 
   final String bloggerId;
+  final bool asDialog;
 
   Widget _buildProfileImage(Map<String, dynamic> data) {
     final String? profileImageBase64 = data['profileImageBase64'] as String?;
@@ -66,6 +68,23 @@ class BloggerDetailScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _openBlogLink(BuildContext context, String domainLink) async {
+    final Uri? uri = Uri.tryParse(domainLink);
+    if (uri == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid blog link.')),
+      );
+      return;
+    }
+
+    final bool launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open blog link.')),
+      );
+    }
+  }
+
   Widget _buildBlogsByBlogger(FirebaseFirestore firestore) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: firestore
@@ -104,6 +123,7 @@ class BloggerDetailScreen extends StatelessWidget {
             final String description = data['description'] as String? ?? '';
             final String city = data['city'] as String? ?? '';
             final String county = data['county'] as String? ?? '';
+            final String domainLink = data['domainLink'] as String? ?? '';
             final List<String> tags =
                 List<String>.from(data['tags'] as List<dynamic>? ?? <dynamic>[]);
 
@@ -144,6 +164,17 @@ class BloggerDetailScreen extends StatelessWidget {
                             .toList(),
                       ),
                     ],
+                    if (domainLink.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _openBlogLink(context, domainLink),
+                          icon: const Icon(Icons.open_in_new),
+                          label: const Text('Visit Blog'),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -161,11 +192,7 @@ class BloggerDetailScreen extends StatelessWidget {
       databaseId: 'default',
     );
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Blogger Profile'),
-      ),
-      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+    final Widget content = StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: firestore.collection('users').doc(bloggerId).snapshots(),
         builder: (
           BuildContext context,
@@ -208,102 +235,106 @@ class BloggerDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(child: _buildProfileImage(data)),
-                const SizedBox(height: 12),
-                Center(
-                  child: Text(
-                    displayName,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 12),
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(12),
-                    child: Column(
+                    child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Location',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          locationText.isEmpty
-                              ? 'Location unavailable'
-                              : locationText,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Contact',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (email.isNotEmpty)
-                              OutlinedButton.icon(
-                                onPressed: () => _openEmail(context, email),
-                                icon: const Icon(Icons.email_outlined),
-                                label: const Text('Email'),
+                            _buildProfileImage(data),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: 140,
+                              child: Text(
+                                displayName,
+                                style: Theme.of(context).textTheme.titleMedium,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            if (xUrl.isNotEmpty)
-                              OutlinedButton.icon(
-                                onPressed: () => _openExternalLink(context, xUrl),
-                                icon: const Icon(Icons.open_in_new),
-                                label: const Text('X / Twitter'),
-                              ),
-                            if (instagramUrl.isNotEmpty)
-                              OutlinedButton.icon(
-                                onPressed: () =>
-                                    _openExternalLink(context, instagramUrl),
-                                icon: const Icon(Icons.open_in_new),
-                                label: const Text('Instagram'),
-                              ),
-                            if (facebookUrl.isNotEmpty)
-                              OutlinedButton.icon(
-                                onPressed: () =>
-                                    _openExternalLink(context, facebookUrl),
-                                icon: const Icon(Icons.open_in_new),
-                                label: const Text('Facebook'),
-                              ),
+                            ),
                           ],
                         ),
-                        if (email.isEmpty &&
-                            xUrl.isEmpty &&
-                            instagramUrl.isEmpty &&
-                            facebookUrl.isEmpty) ...[
-                          const Text('No contact methods shared yet.'),
-                        ],
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Tags',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        if (tags.isEmpty)
-                          const Text('No tags yet')
-                        else
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: tags
-                                .map((String tag) => Chip(label: Text(tag)))
-                                .toList(),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Location',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                locationText.isEmpty
+                                    ? 'Location unavailable'
+                                    : locationText,
+                              ),
+                              const SizedBox(height: 10),
+                              const Text(
+                                'Contact',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  if (email.isNotEmpty)
+                                    OutlinedButton.icon(
+                                      onPressed: () => _openEmail(context, email),
+                                      icon: const Icon(Icons.email_outlined),
+                                      label: const Text('Email'),
+                                    ),
+                                  if (xUrl.isNotEmpty)
+                                    OutlinedButton.icon(
+                                      onPressed: () => _openExternalLink(context, xUrl),
+                                      icon: const Icon(Icons.open_in_new),
+                                      label: const Text('X'),
+                                    ),
+                                  if (instagramUrl.isNotEmpty)
+                                    OutlinedButton.icon(
+                                      onPressed: () =>
+                                          _openExternalLink(context, instagramUrl),
+                                      icon: const Icon(Icons.open_in_new),
+                                      label: const Text('Instagram'),
+                                    ),
+                                  if (facebookUrl.isNotEmpty)
+                                    OutlinedButton.icon(
+                                      onPressed: () =>
+                                          _openExternalLink(context, facebookUrl),
+                                      icon: const Icon(Icons.open_in_new),
+                                      label: const Text('Facebook'),
+                                    ),
+                                ],
+                              ),
+                              if (email.isEmpty &&
+                                  xUrl.isEmpty &&
+                                  instagramUrl.isEmpty &&
+                                  facebookUrl.isEmpty) ...[
+                                const Text('No contact methods shared yet.'),
+                              ],
+                              const SizedBox(height: 10),
+                              const Text(
+                                'Tags',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 6),
+                              if (tags.isEmpty)
+                                const Text('No tags yet')
+                              else
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: tags
+                                      .map((String tag) => Chip(label: Text(tag)))
+                                      .toList(),
+                                ),
+                            ],
                           ),
+                        ),
                       ],
                     ),
                   ),
@@ -321,7 +352,11 @@ class BloggerDetailScreen extends StatelessWidget {
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 6),
-                          Text(profileDetails),
+                          Text(
+                            profileDetails,
+                            maxLines: 5,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                       ),
                     ),
@@ -348,6 +383,42 @@ class BloggerDetailScreen extends StatelessWidget {
             ),
           );
         },
+      );
+
+    if (!asDialog) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Blogger Profile'),
+        ),
+        body: content,
+      );
+    }
+
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900, maxHeight: 720),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 8, 4),
+              child: Row(
+                children: [
+                  const Text(
+                    'Blogger Profile',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(child: content),
+          ],
+        ),
       ),
     );
   }

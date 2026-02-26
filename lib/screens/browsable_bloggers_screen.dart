@@ -337,9 +337,7 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
           color: Theme.of(context).colorScheme.outlineVariant,
         ),
       ),
-      child: compact
-          ? SingleChildScrollView(child: content)
-          : content,
+        child: SingleChildScrollView(child: content),
     );
   }
 
@@ -371,6 +369,7 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
     final String county = data['county'] as String? ?? '';
     final List<String> tags =
         List<String>.from(data['tags'] as List<dynamic>? ?? <dynamic>[]);
+    final String tagsSummary = tags.isEmpty ? 'No tags yet' : tags.join(', ');
 
     String? distanceText;
     final GeoPoint? userPoint = _currentUserLocation;
@@ -388,12 +387,14 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (BuildContext context) => BloggerDetailScreen(
+        showDialog<void>(
+          context: context,
+          builder: (BuildContext context) {
+            return BloggerDetailScreen(
               bloggerId: doc.id,
-            ),
-          ),
+              asDialog: true,
+            );
+          },
         );
       },
       child: Card(
@@ -402,21 +403,31 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(child: _buildProfileImage(data)),
-              const SizedBox(height: 8),
-              Text(
-                displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Row(
+                children: [
+                  _buildProfileImage(data),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Text(
                 [city, county].where((String part) => part.isNotEmpty).join(', ').isEmpty
                     ? 'Location unavailable'
                     : [city, county].where((String part) => part.isNotEmpty).join(', '),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12),
               ),
               if (distanceText != null) ...[
                 const SizedBox(height: 4),
@@ -426,25 +437,12 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
                 ),
               ],
               const SizedBox(height: 6),
-              if (tags.isEmpty)
-                const Text('No tags yet', style: TextStyle(fontSize: 12))
-              else
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: tags
-                      .take(4)
-                      .map(
-                        (String tag) => Chip(
-                          visualDensity: VisualDensity.compact,
-                          label: Text(
-                            tag,
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
+              Text(
+                'Tags: $tagsSummary',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12),
+              ),
             ],
           ),
         ),
@@ -501,7 +499,7 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
                   crossAxisCount: crossAxisCount,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
-                  childAspectRatio: 1.25,
+                  childAspectRatio: 2.05,
                 ),
                 itemCount: filteredDocs.length,
                 itemBuilder: (BuildContext context, int index) {
@@ -524,16 +522,16 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
           );
         }
 
-        const double filterWidth = 280;
-        final double gridWidth = constraints.maxWidth - filterWidth - 8;
-
         return Row(
           children: [
-            SizedBox(
-              width: filterWidth,
+            Expanded(
+              flex: 3,
               child: _buildFilters(compact: false),
             ),
-            Expanded(child: gridPane(gridWidth)),
+            Expanded(
+              flex: 7,
+              child: gridPane(constraints.maxWidth * 0.7),
+            ),
           ],
         );
       },
