@@ -27,6 +27,9 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _domainLinkController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
+  final TextEditingController _xUrlController = TextEditingController();
+  final TextEditingController _instagramUrlController = TextEditingController();
+  final TextEditingController _facebookUrlController = TextEditingController();
 
   final List<String> _availableTags = [
     'Politics',
@@ -61,6 +64,9 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
       _nameController.text = widget.blogger!.displayName;
       _domainLinkController.text = widget.blogger!.domainLink ?? '';
       _bioController.text = widget.blogger!.profileDetails ?? '';
+      _xUrlController.text = widget.blogger!.xUrl ?? '';
+      _instagramUrlController.text = widget.blogger!.instagramUrl ?? '';
+      _facebookUrlController.text = widget.blogger!.facebookUrl ?? '';
       _selectedTags
         ..clear()
         ..addAll(widget.blogger!.tags);
@@ -76,6 +82,9 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
     _nameController.dispose();
     _domainLinkController.dispose();
     _bioController.dispose();
+    _xUrlController.dispose();
+    _instagramUrlController.dispose();
+    _facebookUrlController.dispose();
     super.dispose();
   }
 
@@ -152,6 +161,9 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
     final String name = _nameController.text.trim();
     final String domainLink = _domainLinkController.text.trim();
     final String bio = _bioController.text.trim();
+    final String xUrl = _xUrlController.text.trim();
+    final String instagramUrl = _instagramUrlController.text.trim();
+    final String facebookUrl = _facebookUrlController.text.trim();
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -170,6 +182,9 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
         name,
         domainLink.isEmpty ? null : domainLink,
         bio.isEmpty ? null : bio,
+        xUrl.isEmpty ? null : xUrl,
+        instagramUrl.isEmpty ? null : instagramUrl,
+        facebookUrl.isEmpty ? null : facebookUrl,
         _location,
         _city,
         _county,
@@ -242,6 +257,36 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
                 labelText: 'Bio / Profile Details',
                 border: OutlineInputBorder(),
                 helperText: 'Tell us about yourself and your work',
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            const Text('Socials', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _xUrlController,
+              decoration: const InputDecoration(
+                labelText: 'X / Twitter URL (optional)',
+                border: OutlineInputBorder(),
+                helperText: 'https://x.com/yourname',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _instagramUrlController,
+              decoration: const InputDecoration(
+                labelText: 'Instagram URL (optional)',
+                border: OutlineInputBorder(),
+                helperText: 'https://instagram.com/yourname',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _facebookUrlController,
+              decoration: const InputDecoration(
+                labelText: 'Facebook URL (optional)',
+                border: OutlineInputBorder(),
+                helperText: 'https://facebook.com/yourname',
               ),
             ),
             const SizedBox(height: 16),

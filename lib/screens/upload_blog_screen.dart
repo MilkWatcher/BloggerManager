@@ -277,6 +277,18 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
     });
 
     try {
+      final DocumentSnapshot<Map<String, dynamic>> authorDoc =
+          await _firestore.collection('users').doc(user.uid).get();
+      final Map<String, dynamic>? authorData = authorDoc.data();
+      final String authorDisplayName =
+          (authorData?['displayName'] as String?)?.trim().isNotEmpty == true
+              ? (authorData!['displayName'] as String)
+              : ((user.displayName ?? '').trim().isNotEmpty
+                    ? user.displayName!.trim()
+                    : 'Unknown Blogger');
+      final String? authorProfileImageBase64 =
+          authorData?['profileImageBase64'] as String?;
+
       final Map<String, dynamic> blogPayload = {
         'title': title,
         'description': description,
@@ -293,6 +305,8 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
         'blogImageBase64': blogImageBase64,
         'googleMapsUrl': googleMapsUrl,
         'uploadedBy': user.uid,
+        'authorDisplayName': authorDisplayName,
+        'authorProfileImageBase64': authorProfileImageBase64,
       };
 
       if (_isEditMode) {

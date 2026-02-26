@@ -220,10 +220,8 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
     }).toList();
   }
 
-  Widget _buildFilters() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-      child: Column(
+  Widget _buildFilters({required bool compact}) {
+    final Widget content = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
@@ -327,7 +325,21 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
             }).toList(),
           ),
         ],
+      );
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+        ),
       ),
+      child: compact
+          ? SingleChildScrollView(child: content)
+          : content,
     );
   }
 
@@ -386,24 +398,24 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
       },
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(child: _buildProfileImage(data)),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
                 displayName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 [city, county].where((String part) => part.isNotEmpty).join(', ').isEmpty
                     ? 'Location unavailable'
                     : [city, county].where((String part) => part.isNotEmpty).join(', '),
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               if (distanceText != null) ...[
@@ -413,16 +425,24 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
                   style: const TextStyle(fontSize: 12),
                 ),
               ],
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               if (tags.isEmpty)
-                const Text('No tags yet')
+                const Text('No tags yet', style: TextStyle(fontSize: 12))
               else
                 Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                  spacing: 4,
+                  runSpacing: 4,
                   children: tags
-                      .take(6)
-                      .map((String tag) => Chip(label: Text(tag)))
+                      .take(4)
+                      .map(
+                        (String tag) => Chip(
+                          visualDensity: VisualDensity.compact,
+                          label: Text(
+                            tag,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
             ],
@@ -432,15 +452,23 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
     );
   }
 
+  int _gridCountForWidth(double width) {
+    final int calculated = (width / 200).floor();
+    return calculated.clamp(2, 8);
+  }
+
   @override
   Widget build(BuildContext context) {
     final double? maxDistanceKm = _distanceKmForMode(_geoSearchMode);
 
-    return Column(
-      children: [
-        _buildFilters(),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool isDesktop = constraints.maxWidth >= 900;
+
+        Widget gridPane(double availableWidth) {
+          final int crossAxisCount = _gridCountForWidth(availableWidth);
+
+          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
             stream: _buildBaseQuery().snapshots(),
             builder: (
               BuildContext context,
@@ -468,12 +496,12 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
               }
 
               return GridView.builder(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
+                padding: const EdgeInsets.fromLTRB(8, 12, 12, 16),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
-                  childAspectRatio: 0.8,
+                  childAspectRatio: 1.25,
                 ),
                 itemCount: filteredDocs.length,
                 itemBuilder: (BuildContext context, int index) {
@@ -481,9 +509,34 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
                 },
               );
             },
-          ),
-        ),
-      ],
+          );
+        }
+
+        if (!isDesktop) {
+          return Column(
+            children: [
+              SizedBox(
+                height: 320,
+                child: _buildFilters(compact: true),
+              ),
+              Expanded(child: gridPane(constraints.maxWidth)),
+            ],
+          );
+        }
+
+        const double filterWidth = 280;
+        final double gridWidth = constraints.maxWidth - filterWidth - 8;
+
+        return Row(
+          children: [
+            SizedBox(
+              width: filterWidth,
+              child: _buildFilters(compact: false),
+            ),
+            Expanded(child: gridPane(gridWidth)),
+          ],
+        );
+      },
     );
   }
 }

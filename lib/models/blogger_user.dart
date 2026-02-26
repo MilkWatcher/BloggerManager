@@ -13,6 +13,9 @@ class BloggerUser {
   final String? cityCounty;
   final String? areaCode;
   final String? profileDetails;
+  final String? xUrl;
+  final String? instagramUrl;
+  final String? facebookUrl;
   final List<String> tags;
   final String verificationStatus; // Pending, Approved, Denied
   final DateTime createdAt;
@@ -32,6 +35,9 @@ class BloggerUser {
     this.cityCounty,
     this.areaCode,
     this.profileDetails,
+    this.xUrl,
+    this.instagramUrl,
+    this.facebookUrl,
     this.tags = const [],
     this.verificationStatus = 'Pending',
     required this.createdAt,
@@ -54,6 +60,9 @@ class BloggerUser {
       'cityCounty': cityCounty,
       'areaCode': areaCode,
       'profileDetails': profileDetails,
+      'xUrl': xUrl,
+      'instagramUrl': instagramUrl,
+      'facebookUrl': facebookUrl,
       'tags': tags,
       'verificationStatus': verificationStatus,
       'createdAt': createdAt,
@@ -77,6 +86,9 @@ class BloggerUser {
       cityCounty: json['cityCounty'] as String?,
       areaCode: json['areaCode'] as String?,
       profileDetails: json['profileDetails'] as String?,
+      xUrl: json['xUrl'] as String?,
+      instagramUrl: json['instagramUrl'] as String?,
+      facebookUrl: json['facebookUrl'] as String?,
       tags: List<String>.from(json['tags'] as List? ?? []),
       verificationStatus: json['verificationStatus'] as String? ?? 'Pending',
       createdAt: (json['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -99,6 +111,9 @@ class BloggerUser {
     String? cityCounty,
     String? areaCode,
     String? profileDetails,
+    String? xUrl,
+    String? instagramUrl,
+    String? facebookUrl,
     List<String>? tags,
     String? verificationStatus,
     DateTime? createdAt,
@@ -118,6 +133,9 @@ class BloggerUser {
       cityCounty: cityCounty ?? this.cityCounty,
       areaCode: areaCode ?? this.areaCode,
       profileDetails: profileDetails ?? this.profileDetails,
+      xUrl: xUrl ?? this.xUrl,
+      instagramUrl: instagramUrl ?? this.instagramUrl,
+      facebookUrl: facebookUrl ?? this.facebookUrl,
       tags: tags ?? this.tags,
       verificationStatus: verificationStatus ?? this.verificationStatus,
       createdAt: createdAt ?? this.createdAt,

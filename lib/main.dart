@@ -291,6 +291,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       GoogleGeocodingService();
   final TextEditingController _displayNameController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
+  final TextEditingController _xUrlController = TextEditingController();
+  final TextEditingController _instagramUrlController = TextEditingController();
+  final TextEditingController _facebookUrlController = TextEditingController();
   final List<String> _availableTags = [
     'Politics',
     'Food',
@@ -323,6 +326,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   void dispose() {
     _displayNameController.dispose();
     _bioController.dispose();
+    _xUrlController.dispose();
+    _instagramUrlController.dispose();
+    _facebookUrlController.dispose();
     super.dispose();
   }
 
@@ -467,6 +473,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   Future<void> _completeProfile() async {
     final String displayName = _displayNameController.text.trim();
     final String bio = _bioController.text.trim();
+    final String xUrl = _xUrlController.text.trim();
+    final String instagramUrl = _instagramUrlController.text.trim();
+    final String facebookUrl = _facebookUrlController.text.trim();
 
     if (displayName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -500,6 +509,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       await _firestore.collection('users').doc(widget.user.uid).set({
         'displayName': displayName,
         'profileDetails': bio.isEmpty ? null : bio,
+        'xUrl': xUrl.isEmpty ? null : xUrl,
+        'instagramUrl': instagramUrl.isEmpty ? null : instagramUrl,
+        'facebookUrl': facebookUrl.isEmpty ? null : facebookUrl,
         'tags': _selectedTags,
         'location': _currentLocation,
         'city': _city,
@@ -592,6 +604,38 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
               maxLines: 3,
               decoration: const InputDecoration(
                 labelText: 'Bio / Profile Details',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Socials (optional)',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _xUrlController,
+              decoration: const InputDecoration(
+                labelText: 'X / Twitter URL',
+                helperText: 'https://x.com/yourname',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _instagramUrlController,
+              decoration: const InputDecoration(
+                labelText: 'Instagram URL',
+                helperText: 'https://instagram.com/yourname',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _facebookUrlController,
+              decoration: const InputDecoration(
+                labelText: 'Facebook URL',
+                helperText: 'https://facebook.com/yourname',
                 border: OutlineInputBorder(),
               ),
             ),

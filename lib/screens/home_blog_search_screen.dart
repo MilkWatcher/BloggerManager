@@ -337,6 +337,24 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
     );
   }
 
+  Widget _buildAuthorMiniAvatar(Map<String, dynamic> data) {
+    final String? authorImageBase64 = data['authorProfileImageBase64'] as String?;
+    if (authorImageBase64 != null && authorImageBase64.isNotEmpty) {
+      try {
+        final Uint8List bytes = base64Decode(authorImageBase64);
+        return CircleAvatar(
+          radius: 12,
+          backgroundImage: MemoryImage(bytes),
+        );
+      } catch (_) {}
+    }
+
+    return const CircleAvatar(
+      radius: 12,
+      child: Icon(Icons.person, size: 14),
+    );
+  }
+
   Widget _buildFiltersPanel(GeoPoint? userPoint) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -532,6 +550,11 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
             final String city = data['city'] as String? ?? '';
             final String county = data['county'] as String? ?? '';
             final String country = data['country'] as String? ?? '';
+            final String authorDisplayName =
+              data['authorDisplayName'] as String? ??
+              (data['uploadedBy'] as String? ?? 'Unknown Blogger');
+            final List<String> tags =
+              List<String>.from(data['tags'] as List<dynamic>? ?? <dynamic>[]);
             final String cityCounty =
                 (data['cityCounty'] as String? ?? '').trim().isNotEmpty
                     ? (data['cityCounty'] as String)
@@ -573,6 +596,21 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              _buildAuthorMiniAvatar(data),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  authorDisplayName,
+                                  style: const TextStyle(fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                           if (domainLink.isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Text(
@@ -597,6 +635,17 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
                             alignment: Alignment.centerRight,
                             child: Text(country.isEmpty ? '-' : country),
                           ),
+                          if (tags.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: tags
+                                  .take(5)
+                                  .map((String tag) => Chip(label: Text(tag)))
+                                  .toList(),
+                            ),
+                          ],
                           if (distanceKm != null) ...[
                             const SizedBox(height: 4),
                             Text('Distance: ${distanceKm.toStringAsFixed(1)} km'),
