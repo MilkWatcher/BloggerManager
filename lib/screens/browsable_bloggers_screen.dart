@@ -87,8 +87,8 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
 
   Query<Map<String, dynamic>> _buildBaseQuery() {
     Query<Map<String, dynamic>> query = _firestore
-        .collection('users')
-        .where('profileSetupCompleted', isEqualTo: true);
+        .collection('blogs')
+        .orderBy('uploadedAt', descending: true);
 
     if (_selectedTags.isNotEmpty) {
       query = query.where('tags', arrayContainsAny: _selectedTags);
@@ -172,21 +172,54 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
     }
   }
 
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> _applyClientFilters(
+  List<Map<String, dynamic>> _applyClientFilters(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
     final String searchText = _searchController.text.trim().toLowerCase();
     final GeoPoint? userPoint = _currentUserLocation;
     final double? maxDistanceKm = _distanceKmForMode(_geoSearchMode);
 
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> filtered = docs.where((doc) {
-      return doc.id != widget.currentUserId;
-    }).toList();
+    final Map<String, Map<String, dynamic>> uniqueBloggers =
+        <String, Map<String, dynamic>>{};
+
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> doc in docs) {
+      final Map<String, dynamic> data = doc.data();
+      final String uploaderId = (data['uploadedBy'] as String? ?? '').trim();
+      if (uploaderId.isEmpty || uploaderId == widget.currentUserId) {
+        continue;
+      }
+
+      final List<String> blogTags =
+          List<String>.from(data['tags'] as List<dynamic>? ?? <dynamic>[]);
+
+      if (!uniqueBloggers.containsKey(uploaderId)) {
+        uniqueBloggers[uploaderId] = <String, dynamic>{
+          'bloggerId': uploaderId,
+          'displayName': (data['authorDisplayName'] as String? ?? '').trim().isEmpty
+              ? 'Anonymous Blogger'
+              : (data['authorDisplayName'] as String),
+          'profileImageBase64': data['authorProfileImageBase64'] as String?,
+          'city': data['city'] as String? ?? '',
+          'county': data['county'] as String? ?? '',
+          'country': data['country'] as String? ?? '',
+          'location': data['location'] as GeoPoint?,
+          'tags': <String>{...blogTags}.toList(),
+        };
+      } else {
+        final Map<String, dynamic> existing = uniqueBloggers[uploaderId]!;
+        final Set<String> mergedTags = {
+          ...List<String>.from(existing['tags'] as List<dynamic>? ?? <dynamic>[]),
+          ...blogTags,
+        };
+        existing['tags'] = mergedTags.toList();
+      }
+    }
+
+    List<Map<String, dynamic>> filtered = uniqueBloggers.values.toList();
 
     if (userPoint != null && maxDistanceKm != null) {
       filtered = filtered.where((doc) {
-        final Map<String, dynamic> data = doc.data();
-        final GeoPoint? bloggerPoint = data['location'] as GeoPoint?;
+        final GeoPoint? bloggerPoint = doc['location'] as GeoPoint?;
         if (bloggerPoint == null) {
           return false;
         }
@@ -207,13 +240,12 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
     }
 
     return filtered.where((doc) {
-      final Map<String, dynamic> data = doc.data();
-      final String displayName = (data['displayName'] as String? ?? '').toLowerCase();
-      final String city = (data['city'] as String? ?? '').toLowerCase();
-      final String county = (data['county'] as String? ?? '').toLowerCase();
-      final String country = (data['country'] as String? ?? '').toLowerCase();
+      final String displayName = (doc['displayName'] as String? ?? '').toLowerCase();
+      final String city = (doc['city'] as String? ?? '').toLowerCase();
+      final String county = (doc['county'] as String? ?? '').toLowerCase();
+      final String country = (doc['country'] as String? ?? '').toLowerCase();
       final List<String> tags =
-          List<String>.from(data['tags'] as List<dynamic>? ?? <dynamic>[]);
+          List<String>.from(doc['tags'] as List<dynamic>? ?? <dynamic>[]);
 
       return displayName.contains(searchText) ||
           city.contains(searchText) ||
@@ -372,93 +404,136 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
   }
 
   Widget _buildBloggerCard(
-    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+    Map<String, dynamic> doc,
     double? maxDistanceKm,
   ) {
-    final Map<String, dynamic> data = doc.data();
-    final String displayName = data['displayName'] as String? ?? 'Unnamed Blogger';
-    final String city = data['city'] as String? ?? '';
-    final String county = data['county'] as String? ?? '';
-    final List<String> tags =
-        List<String>.from(data['tags'] as List<dynamic>? ?? <dynamic>[]);
-    final String tagsSummary = tags.isEmpty ? 'No tags yet' : tags.join(', ');
+    final String bloggerId = doc['bloggerId'] as String;
 
-    String? distanceText;
-    final GeoPoint? userPoint = _currentUserLocation;
-    final GeoPoint? bloggerPoint = data['location'] as GeoPoint?;
-    if (userPoint != null && bloggerPoint != null && maxDistanceKm != null) {
-      final double distanceMeters = Geolocator.distanceBetween(
-        userPoint.latitude,
-        userPoint.longitude,
-        bloggerPoint.latitude,
-        bloggerPoint.longitude,
-      );
-      distanceText = '${(distanceMeters / 1000).toStringAsFixed(1)} km away';
-    }
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: _firestore.collection('users').doc(bloggerId).snapshots(),
+      builder: (
+        BuildContext context,
+        AsyncSnapshot<DocumentSnapshot<Map<String, dynamic>>> snapshot,
+      ) {
+        final Map<String, dynamic> userData = snapshot.data?.data() ?? <String, dynamic>{};
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () {
-        showDialog<void>(
-          context: context,
-          builder: (BuildContext context) {
-            return BloggerDetailScreen(
-              bloggerId: doc.id,
-              asDialog: true,
+        final String displayName =
+            (userData['displayName'] as String? ?? '').trim().isNotEmpty
+                ? (userData['displayName'] as String).trim()
+                : ((doc['displayName'] as String? ?? '').trim().isNotEmpty
+                    ? (doc['displayName'] as String).trim()
+                    : 'Anonymous Blogger');
+        final String city =
+            (userData['city'] as String? ?? '').trim().isNotEmpty
+                ? (userData['city'] as String).trim()
+                : (doc['city'] as String? ?? '');
+        final String county =
+            (userData['county'] as String? ?? '').trim().isNotEmpty
+                ? (userData['county'] as String).trim()
+                : (doc['county'] as String? ?? '');
+        final GeoPoint? bloggerPoint =
+            userData['location'] as GeoPoint? ?? doc['location'] as GeoPoint?;
+        final List<String> tags =
+            List<String>.from(userData['tags'] as List<dynamic>? ?? <dynamic>[])
+                .where((String tag) => tag.trim().isNotEmpty)
+                .toList();
+        final List<String> fallbackTags =
+            List<String>.from(doc['tags'] as List<dynamic>? ?? <dynamic>[])
+                .where((String tag) => tag.trim().isNotEmpty)
+                .toList();
+        final String tagsSummary =
+            (tags.isNotEmpty ? tags : fallbackTags).isEmpty
+                ? 'No tags yet'
+                : (tags.isNotEmpty ? tags : fallbackTags).join(', ');
+
+        String? distanceText;
+        final GeoPoint? userPoint = _currentUserLocation;
+        if (userPoint != null && bloggerPoint != null && maxDistanceKm != null) {
+          final double distanceMeters = Geolocator.distanceBetween(
+            userPoint.latitude,
+            userPoint.longitude,
+            bloggerPoint.latitude,
+            bloggerPoint.longitude,
+          );
+          distanceText = '${(distanceMeters / 1000).toStringAsFixed(1)} km away';
+        }
+
+        final Map<String, dynamic> imageSource = <String, dynamic>{
+          'profileImageBase64': (userData['profileImageBase64'] as String? ?? '').trim().isNotEmpty
+              ? userData['profileImageBase64']
+              : doc['profileImageBase64'],
+        };
+
+        return InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            showDialog<void>(
+              context: context,
+              builder: (BuildContext context) {
+                return BloggerDetailScreen(
+                  bloggerId: bloggerId,
+                  asDialog: true,
+                );
+              },
             );
           },
-        );
-      },
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildProfileImage(data),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      displayName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                  Row(
+                    children: [
+                      _buildProfileImage(imageSource),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    [city, county]
+                            .where((String part) => part.isNotEmpty)
+                            .join(', ')
+                            .isEmpty
+                        ? 'Location unavailable'
+                        : [city, county]
+                            .where((String part) => part.isNotEmpty)
+                            .join(', '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  if (distanceText != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      distanceText,
+                      style: const TextStyle(fontSize: 12),
                     ),
+                  ],
+                  const SizedBox(height: 6),
+                  Text(
+                    'Tags: $tagsSummary',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12),
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                [city, county].where((String part) => part.isNotEmpty).join(', ').isEmpty
-                    ? 'Location unavailable'
-                    : [city, county].where((String part) => part.isNotEmpty).join(', '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12),
-              ),
-              if (distanceText != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  distanceText,
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-              const SizedBox(height: 6),
-              Text(
-                'Tags: $tagsSummary',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -501,7 +576,7 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
 
               final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs =
                   snapshot.data?.docs ?? <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-              final List<QueryDocumentSnapshot<Map<String, dynamic>>> filteredDocs =
+                final List<Map<String, dynamic>> filteredDocs =
                   _applyClientFilters(docs);
 
               if (filteredDocs.isEmpty) {

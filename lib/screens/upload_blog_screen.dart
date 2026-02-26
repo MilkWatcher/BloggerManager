@@ -267,8 +267,28 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
     }
 
     final GeoPoint location = _selectedLocation!;
-    final String googleMapsUrl =
-        'https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}';
+    final String areaQuery = [_selectedCity, _selectedCounty, _selectedCountry]
+        .whereType<String>()
+        .where((String part) => part.trim().isNotEmpty)
+        .join(', ');
+    final String googleMapsUrl = areaQuery.isNotEmpty
+        ? Uri.https(
+            'www.google.com',
+            '/maps/search/',
+            <String, String>{
+              'api': '1',
+              'query': areaQuery,
+            },
+          ).toString()
+        : Uri.https(
+            'www.google.com',
+            '/maps/search/',
+            <String, String>{
+              'api': '1',
+              'query':
+                  '${location.latitude.toStringAsFixed(2)},${location.longitude.toStringAsFixed(2)}',
+            },
+          ).toString();
     final String? blogImageBase64 =
       _blogImageBytes == null ? null : base64Encode(_blogImageBytes!);
 

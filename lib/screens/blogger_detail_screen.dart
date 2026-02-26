@@ -85,6 +85,34 @@ class BloggerDetailScreen extends StatelessWidget {
     }
   }
 
+  Widget _buildBlogImageThumbnail(Map<String, dynamic> data) {
+    final String? blogImageBase64 = data['blogImageBase64'] as String?;
+    if (blogImageBase64 != null && blogImageBase64.isNotEmpty) {
+      try {
+        final Uint8List bytes = base64Decode(blogImageBase64);
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(
+            bytes,
+            width: 96,
+            height: 96,
+            fit: BoxFit.cover,
+          ),
+        );
+      } catch (_) {}
+    }
+
+    return Container(
+      width: 96,
+      height: 96,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(Icons.image_not_supported_outlined),
+    );
+  }
+
   Widget _buildBlogsByBlogger(FirebaseFirestore firestore) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: firestore
@@ -131,50 +159,70 @@ class BloggerDetailScreen extends StatelessWidget {
               margin: const EdgeInsets.only(top: 8),
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: Column(
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    if (description.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    if (city.isNotEmpty || county.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        [city, county]
-                            .where((String part) => part.isNotEmpty)
-                            .join(', '),
-                      ),
-                    ],
-                    if (tags.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: tags
-                            .map((String tag) => Chip(label: Text(tag)))
-                            .toList(),
-                      ),
-                    ],
-                    if (domainLink.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: OutlinedButton.icon(
-                          onPressed: () => _openBlogLink(context, domainLink),
-                          icon: const Icon(Icons.open_in_new),
-                          label: const Text('Visit Blog'),
+                    _buildBlogImageThumbnail(data),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 96),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (description.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                description,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                            if (city.isNotEmpty || county.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                [city, county]
+                                    .where((String part) => part.isNotEmpty)
+                                    .join(', '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                            if (tags.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                tags.join(', '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                            if (domainLink.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.bottomRight,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => _openBlogLink(context, domainLink),
+                                    icon: const Icon(Icons.open_in_new),
+                                    label: const Text('Visit Blog'),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -244,24 +292,25 @@ class BloggerDetailScreen extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildProfileImage(data),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: 140,
-                              child: Text(
+                        Expanded(
+                          flex: 3,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildProfileImage(data),
+                              const SizedBox(height: 8),
+                              Text(
                                 displayName,
                                 style: Theme.of(context).textTheme.titleMedium,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
+                          flex: 7,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [

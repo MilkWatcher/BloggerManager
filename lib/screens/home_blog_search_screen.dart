@@ -60,6 +60,79 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
   GeoPoint? _currentUserLocation;
   bool _isUpdatingLocation = false;
 
+  static const Map<String, String> _countryCodeByName = <String, String>{
+    'ireland': 'IE',
+    'united kingdom': 'GB',
+    'uk': 'GB',
+    'great britain': 'GB',
+    'england': 'GB',
+    'scotland': 'GB',
+    'wales': 'GB',
+    'united states': 'US',
+    'usa': 'US',
+    'canada': 'CA',
+    'australia': 'AU',
+    'new zealand': 'NZ',
+    'india': 'IN',
+    'france': 'FR',
+    'germany': 'DE',
+    'spain': 'ES',
+    'italy': 'IT',
+    'portugal': 'PT',
+    'netherlands': 'NL',
+    'belgium': 'BE',
+    'sweden': 'SE',
+    'norway': 'NO',
+    'finland': 'FI',
+    'denmark': 'DK',
+    'poland': 'PL',
+    'austria': 'AT',
+    'switzerland': 'CH',
+    'japan': 'JP',
+    'south korea': 'KR',
+    'china': 'CN',
+    'singapore': 'SG',
+    'philippines': 'PH',
+  };
+
+  String? _flagEmojiFromCountry(String country) {
+    final String normalized = country.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return null;
+    }
+
+    String? isoCode = _countryCodeByName[normalized];
+    if (isoCode == null && normalized.length == 2) {
+      isoCode = normalized.toUpperCase();
+    }
+
+    if (isoCode == null || isoCode.length != 2) {
+      return null;
+    }
+
+    final int first = isoCode.codeUnitAt(0) - 65 + 0x1F1E6;
+    final int second = isoCode.codeUnitAt(1) - 65 + 0x1F1E6;
+    return String.fromCharCodes(<int>[first, second]);
+  }
+
+  Widget _buildCountryFlagBadge(String country) {
+    final String? flagEmoji = _flagEmojiFromCountry(country);
+    return Tooltip(
+      message: country.isEmpty ? 'Country unavailable' : country,
+      child: Container(
+        width: 28,
+        height: 28,
+        alignment: Alignment.center,
+        child: flagEmoji == null
+            ? const Icon(Icons.public, size: 18)
+            : Text(
+                flagEmoji,
+                style: const TextStyle(fontSize: 20),
+              ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -217,18 +290,39 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
   }
 
   Future<void> _openMapForBlog(Map<String, dynamic> data) async {
-    final String? storedUrl = data['googleMapsUrl'] as String?;
     Uri? uri;
+    final String city = (data['city'] as String? ?? '').trim();
+    final String county = (data['county'] as String? ?? '').trim();
+    final String country = (data['country'] as String? ?? '').trim();
+    final String areaQuery = [city, county, country]
+        .where((String part) => part.isNotEmpty)
+        .join(', ');
 
-    if (storedUrl != null && storedUrl.isNotEmpty) {
-      uri = Uri.tryParse(storedUrl);
+    if (areaQuery.isNotEmpty) {
+      uri = Uri.https(
+        'www.google.com',
+        '/maps/search/',
+        <String, String>{
+          'api': '1',
+          'query': areaQuery,
+        },
+      );
     }
 
     if (uri == null) {
       final GeoPoint? location = data['location'] as GeoPoint?;
       if (location != null) {
-        uri = Uri.parse(
-          'https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}',
+        final double roundedLat =
+            double.parse(location.latitude.toStringAsFixed(2));
+        final double roundedLng =
+            double.parse(location.longitude.toStringAsFixed(2));
+        uri = Uri.https(
+          'www.google.com',
+          '/maps/search/',
+          <String, String>{
+            'api': '1',
+            'query': '$roundedLat,$roundedLng',
+          },
         );
       }
     }
@@ -647,14 +741,23 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _buildCountryFlagBadge(country),
+                            ],
                           ),
                           const SizedBox(height: 4),
                           _buildAuthorIdentity(data),
@@ -678,10 +781,6 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
                           ),
                           const SizedBox(height: 6),
                           Text(cityCounty.isEmpty ? '-' : cityCounty),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: Text(country.isEmpty ? '-' : country),
-                          ),
                           if (tags.isNotEmpty) ...[
                             const SizedBox(height: 6),
                             Wrap(

@@ -71,6 +71,11 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final FirebaseFirestore firestore = FirebaseFirestore.instanceFor(
+      app: Firebase.app(),
+      databaseId: 'default',
+    );
+
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (BuildContext context, AsyncSnapshot<User?> snapshot) {
@@ -80,8 +85,31 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        if (snapshot.hasData && snapshot.data != null) {
-          return ProfileDashboardScreen(user: snapshot.data!);
+        final User? user = snapshot.data;
+        if (snapshot.hasData && user != null) {
+          return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: firestore.collection('users').doc(user.uid).snapshots(),
+            builder: (
+              BuildContext context,
+              AsyncSnapshot<DocumentSnapshot<Map<String, dynamic>>> userSnapshot,
+            ) {
+              if (userSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              final Map<String, dynamic>? userData = userSnapshot.data?.data();
+              final bool profileSetupCompleted =
+                  userData?['profileSetupCompleted'] as bool? ?? false;
+
+              if (!profileSetupCompleted) {
+                return CompleteProfileScreen(user: user);
+              }
+
+              return ProfileDashboardScreen(user: user);
+            },
+          );
         }
 
         return const AuthScreen();
@@ -778,6 +806,18 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
       appBar: AppBar(
         title: _buildLogoOnlyTitle(),
         actions: <Widget>[
+          const Padding(
+            padding: EdgeInsets.only(right: 8),
+            child: Center(
+              child: Text(
+                'Application by Reanielle Broas C00296913',
+                style: TextStyle(
+                  color: Color(0xFF8E79C9),
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ),
           IconButton(
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
@@ -901,8 +941,10 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Card(
-                        child: Padding(
+                      SizedBox(
+                        width: double.infinity,
+                        child: Card(
+                          child: Padding(
                           padding: const EdgeInsets.all(16),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -967,10 +1009,13 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
                             ],
                           ),
                         ),
+                        ),
                       ),
                       const SizedBox(height: 16),
-                      Card(
-                        child: Padding(
+                      SizedBox(
+                        width: double.infinity,
+                        child: Card(
+                          child: Padding(
                           padding: const EdgeInsets.all(16),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -986,9 +1031,11 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
                                     : blogger.profileDetails!,
                               ),
                               const SizedBox(height: 12),
-                              Card(
-                                margin: EdgeInsets.zero,
-                                child: Padding(
+                              SizedBox(
+                                width: double.infinity,
+                                child: Card(
+                                  margin: EdgeInsets.zero,
+                                  child: Padding(
                                   padding: const EdgeInsets.all(12),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1011,9 +1058,11 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
                                     ],
                                   ),
                                 ),
+                                ),
                               ),
                             ],
                           ),
+                        ),
                         ),
                       ),
                       const SizedBox(height: 16),

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 import '../models/blogger_user.dart';
 import '../services/blogger_service.dart';
 import '../services/google_geocoding_service.dart';
@@ -52,6 +55,8 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
   final List<String> _selectedTags = [];
   bool _isSaving = false;
   bool _isFetchingLocation = false;
+  bool _isPickingImage = false;
+  Uint8List? _profileImageBytes;
   GeoPoint? _location;
   String? _city;
   String? _county;
@@ -67,6 +72,14 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
       _xUrlController.text = widget.blogger!.xUrl ?? '';
       _instagramUrlController.text = widget.blogger!.instagramUrl ?? '';
       _facebookUrlController.text = widget.blogger!.facebookUrl ?? '';
+      final String? profileImageBase64 = widget.blogger!.profileImageBase64;
+      if (profileImageBase64 != null && profileImageBase64.isNotEmpty) {
+        try {
+          _profileImageBytes = base64Decode(profileImageBase64);
+        } catch (_) {
+          _profileImageBytes = null;
+        }
+      }
       _selectedTags
         ..clear()
         ..addAll(widget.blogger!.tags);
@@ -86,6 +99,58 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
     _instagramUrlController.dispose();
     _facebookUrlController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickProfileImage() async {
+    setState(() {
+      _isPickingImage = true;
+    });
+
+    try {
+      final XFile? file = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 75,
+      );
+
+      if (file == null) {
+        return;
+      }
+
+      final Uint8List bytes = await file.readAsBytes();
+      if (bytes.lengthInBytes > 500000) {
+        if (!mounted) {
+          return;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please choose an image under 500KB.')),
+        );
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _profileImageBytes = bytes;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick image: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPickingImage = false;
+        });
+      }
+    }
   }
 
   Future<void> _refreshLocation() async {
@@ -164,6 +229,8 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
     final String xUrl = _xUrlController.text.trim();
     final String instagramUrl = _instagramUrlController.text.trim();
     final String facebookUrl = _facebookUrlController.text.trim();
+    final String? profileImageBase64 =
+      _profileImageBytes == null ? null : base64Encode(_profileImageBytes!);
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -182,6 +249,7 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
         name,
         domainLink.isEmpty ? null : domainLink,
         bio.isEmpty ? null : bio,
+        profileImageBase64,
         xUrl.isEmpty ? null : xUrl,
         instagramUrl.isEmpty ? null : instagramUrl,
         facebookUrl.isEmpty ? null : facebookUrl,
@@ -229,6 +297,28 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Center(
+              child: CircleAvatar(
+                radius: 42,
+                backgroundImage:
+                    _profileImageBytes == null ? null : MemoryImage(_profileImageBytes!),
+                child: _profileImageBytes == null
+                    ? const Icon(Icons.person, size: 40)
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: (_isSaving || _isPickingImage) ? null : _pickProfileImage,
+                icon: const Icon(Icons.upload),
+                label: Text(
+                  _isPickingImage ? 'Uploading...' : 'Change Profile Picture',
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             // Name field
             TextField(
               controller: _nameController,
