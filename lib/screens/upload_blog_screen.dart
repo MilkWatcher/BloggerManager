@@ -2,11 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:typed_data';
+
+import '../services/google_geocoding_service.dart';
 
 class UploadBlogScreen extends StatefulWidget {
   const UploadBlogScreen({super.key});
@@ -20,6 +21,8 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
     app: Firebase.app(),
     databaseId: 'default',
   );
+  final GoogleGeocodingService _googleGeocodingService =
+      GoogleGeocodingService();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _domainLinkController = TextEditingController();
@@ -151,16 +154,14 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
       String? county;
       String? country;
       try {
-        final List<Placemark> placemarks = await placemarkFromCoordinates(
-          position.latitude,
-          position.longitude,
+        final GoogleGeocodingResult geocodingResult =
+            await _googleGeocodingService.reverseGeocode(
+          latitude: position.latitude,
+          longitude: position.longitude,
         );
-        if (placemarks.isNotEmpty) {
-          final Placemark placemark = placemarks.first;
-          city = placemark.locality;
-          county = placemark.administrativeArea;
-          country = placemark.country;
-        }
+        city = geocodingResult.city;
+        county = geocodingResult.county;
+        country = geocodingResult.country;
       } catch (_) {
         city = null;
         county = null;
@@ -244,6 +245,10 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
         'city': _selectedCity,
         'county': _selectedCounty,
         'country': _selectedCountry,
+        'cityCounty': [_selectedCity, _selectedCounty]
+          .whereType<String>()
+          .where((String part) => part.isNotEmpty)
+          .join(', '),
         'blogImageBase64': blogImageBase64,
         'googleMapsUrl': googleMapsUrl,
         'uploadedAt': FieldValue.serverTimestamp(),

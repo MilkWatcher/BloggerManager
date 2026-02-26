@@ -32,6 +32,7 @@ class BloggerService {
     String? city,
     String? county,
     String? country,
+    String? cityCounty,
     List<String> tags,
   ) async {
     try {
@@ -43,6 +44,7 @@ class BloggerService {
         'city': city,
         'county': county,
         'country': country,
+        'cityCounty': cityCounty,
         'tags': tags,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));

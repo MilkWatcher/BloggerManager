@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
@@ -11,6 +10,7 @@ import 'dart:developer' as developer;
 
 import 'firebase_options.dart';
 import 'models/blogger_user.dart';
+import 'services/google_geocoding_service.dart';
 import 'screens/edit_blogger_profile_screen.dart';
 import 'screens/home_blog_search_screen.dart';
 import 'screens/upload_blog_screen.dart';
@@ -312,6 +312,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     app: Firebase.app(),
     databaseId: 'default',
   );
+  final GoogleGeocodingService _googleGeocodingService =
+      GoogleGeocodingService();
   final TextEditingController _displayNameController = TextEditingController();
   final TextEditingController _domainLinkController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
@@ -432,16 +434,14 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       String? county;
       String? country;
       try {
-        final List<Placemark> placemarks = await placemarkFromCoordinates(
-          position.latitude,
-          position.longitude,
+        final GoogleGeocodingResult geocodingResult =
+            await _googleGeocodingService.reverseGeocode(
+          latitude: position.latitude,
+          longitude: position.longitude,
         );
-        if (placemarks.isNotEmpty) {
-          final Placemark placemark = placemarks.first;
-          city = placemark.locality;
-          county = placemark.administrativeArea;
-          country = placemark.country;
-        }
+        city = geocodingResult.city;
+        county = geocodingResult.county;
+        country = geocodingResult.country;
       } catch (_) {
         city = null;
         county = null;
@@ -453,6 +453,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         'city': city,
         'county': county,
         'country': country,
+        'cityCounty': [city, county]
+            .whereType<String>()
+            .where((String part) => part.isNotEmpty)
+            .join(', '),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -537,6 +541,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
         'city': _city,
         'county': _county,
         'country': _country,
+        'cityCounty': [_city, _county]
+            .whereType<String>()
+            .where((String part) => part.isNotEmpty)
+            .join(', '),
         'profileImageBase64': profileImageBase64,
         'profileSetupCompleted': true,
         'updatedAt': FieldValue.serverTimestamp(),

@@ -532,6 +532,24 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
             final String city = data['city'] as String? ?? '';
             final String county = data['county'] as String? ?? '';
             final String country = data['country'] as String? ?? '';
+            final String cityCounty =
+                (data['cityCounty'] as String? ?? '').trim().isNotEmpty
+                    ? (data['cityCounty'] as String)
+                    : [city, county]
+                        .where((String part) => part.isNotEmpty)
+                        .join(', ');
+            final GeoPoint? blogPoint = data['location'] as GeoPoint?;
+
+            double? distanceKm;
+            if (_currentUserLocation != null && blogPoint != null) {
+              final double distanceMeters = Geolocator.distanceBetween(
+                _currentUserLocation!.latitude,
+                _currentUserLocation!.longitude,
+                blogPoint.latitude,
+                blogPoint.longitude,
+              );
+              distanceKm = distanceMeters / 1000;
+            }
 
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
@@ -574,13 +592,15 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 6),
-                          Text(
-                            '${city.isEmpty ? '-' : city}, ${county.isEmpty ? '-' : county}',
-                          ),
+                          Text(cityCounty.isEmpty ? '-' : cityCounty),
                           Align(
                             alignment: Alignment.centerRight,
                             child: Text(country.isEmpty ? '-' : country),
                           ),
+                          if (distanceKm != null) ...[
+                            const SizedBox(height: 4),
+                            Text('Distance: ${distanceKm.toStringAsFixed(1)} km'),
+                          ],
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 8,

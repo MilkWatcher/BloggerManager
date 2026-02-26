@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/blogger_user.dart';
 import '../services/blogger_service.dart';
+import '../services/google_geocoding_service.dart';
 
 class EditBloggerProfileScreen extends StatefulWidget {
   final BloggerUser? blogger;
@@ -22,6 +22,8 @@ class EditBloggerProfileScreen extends StatefulWidget {
 
 class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
   final BloggerService _bloggerService = BloggerService();
+  final GoogleGeocodingService _googleGeocodingService =
+      GoogleGeocodingService();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _domainLinkController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
@@ -106,16 +108,14 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
       String? county;
       String? country;
       try {
-        final List<Placemark> placemarks = await placemarkFromCoordinates(
-          position.latitude,
-          position.longitude,
+        final GoogleGeocodingResult geocodingResult =
+            await _googleGeocodingService.reverseGeocode(
+          latitude: position.latitude,
+          longitude: position.longitude,
         );
-        if (placemarks.isNotEmpty) {
-          final Placemark placemark = placemarks.first;
-          city = placemark.locality;
-          county = placemark.administrativeArea;
-          country = placemark.country;
-        }
+        city = geocodingResult.city;
+        county = geocodingResult.county;
+        country = geocodingResult.country;
       } catch (_) {
         city = null;
         county = null;
@@ -181,6 +181,10 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
         _city,
         _county,
         _country,
+        [_city, _county]
+            .whereType<String>()
+            .where((String part) => part.isNotEmpty)
+            .join(', '),
         _selectedTags,
       );
 

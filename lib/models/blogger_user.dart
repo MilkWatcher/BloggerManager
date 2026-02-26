@@ -10,6 +10,7 @@ class BloggerUser {
   final String? city;
   final String? county;
   final String? country;
+  final String? cityCounty;
   final String? areaCode;
   final String? profileDetails;
   final List<String> tags;
@@ -28,6 +29,7 @@ class BloggerUser {
     this.city,
     this.county,
     this.country,
+    this.cityCounty,
     this.areaCode,
     this.profileDetails,
     this.tags = const [],
@@ -49,6 +51,7 @@ class BloggerUser {
       'city': city,
       'county': county,
       'country': country,
+      'cityCounty': cityCounty,
       'areaCode': areaCode,
       'profileDetails': profileDetails,
       'tags': tags,
@@ -71,6 +74,7 @@ class BloggerUser {
       city: json['city'] as String?,
       county: json['county'] as String?,
       country: json['country'] as String?,
+      cityCounty: json['cityCounty'] as String?,
       areaCode: json['areaCode'] as String?,
       profileDetails: json['profileDetails'] as String?,
       tags: List<String>.from(json['tags'] as List? ?? []),
@@ -92,6 +96,7 @@ class BloggerUser {
     String? city,
     String? county,
     String? country,
+    String? cityCounty,
     String? areaCode,
     String? profileDetails,
     List<String>? tags,
@@ -110,6 +115,7 @@ class BloggerUser {
       city: city ?? this.city,
       county: county ?? this.county,
       country: country ?? this.country,
+      cityCounty: cityCounty ?? this.cityCounty,
       areaCode: areaCode ?? this.areaCode,
       profileDetails: profileDetails ?? this.profileDetails,
       tags: tags ?? this.tags,
