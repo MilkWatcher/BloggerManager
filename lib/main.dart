@@ -7,7 +7,8 @@ import 'dart:developer' as developer;
 import 'firebase_options.dart';
 import 'models/blogger_user.dart';
 import 'screens/edit_blogger_profile_screen.dart';
-import 'screens/discover_bloggers_screen.dart';
+import 'screens/home_blog_search_screen.dart';
+import 'screens/upload_blog_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -266,7 +267,6 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
     app: Firebase.app(),
     databaseId: 'default',
   );
-  final TextEditingController _domainLinkController = TextEditingController();
   final TextEditingController _areaCodeController = TextEditingController();
   final List<String> _availableTags = [
     'Politics',
@@ -285,20 +285,18 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
     'Photography',
     'Music',
   ];
-  late List<String> _selectedTags = [];
+  final List<String> _selectedTags = [];
   bool _isSavingProfile = false;
   bool _hasSeededProfile = false;
   int _selectedIndex = 0;
 
   @override
   void dispose() {
-    _domainLinkController.dispose();
     _areaCodeController.dispose();
     super.dispose();
   }
 
   Future<void> _saveProfile() async {
-    final String domainLink = _domainLinkController.text.trim();
     final String areaCode = _areaCodeController.text.trim();
 
     setState(() {
@@ -307,7 +305,6 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
 
     try {
       await _firestore.collection('users').doc(widget.user.uid).set({
-        'domainLink': domainLink.isEmpty ? null : domainLink,
         'tags': _selectedTags,
         'areaCode': areaCode.isEmpty ? null : areaCode,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -353,6 +350,19 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
         ],
       ),
       body: _buildPage(_selectedIndex),
+      floatingActionButton: _selectedIndex == 0
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const UploadBlogScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.upload_file),
+              label: const Text('Upload Blog'),
+            )
+          : null,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (int index) {
@@ -362,12 +372,12 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
         },
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'My Profile',
+            icon: Icon(Icons.home),
+            label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.explore),
-            label: 'Discover',
+            icon: Icon(Icons.person),
+            label: 'My Profile',
           ),
         ],
       ),
@@ -377,9 +387,9 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
   Widget _buildPage(int index) {
     switch (index) {
       case 0:
-        return _buildProfilePage();
+        return const HomeBlogSearchScreen();
       case 1:
-        return const DiscoverBloggersScreen();
+        return _buildProfilePage();
       default:
         return _buildProfilePage();
     }
@@ -403,9 +413,10 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
         );
 
         if (!_hasSeededProfile) {
-          _domainLinkController.text = blogger.domainLink ?? '';
           _areaCodeController.text = blogger.areaCode ?? '';
-          _selectedTags = List<String>.from(blogger.tags);
+          _selectedTags
+            ..clear()
+            ..addAll(blogger.tags);
           _hasSeededProfile = true;
         }
 
@@ -450,24 +461,6 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
                 Text(blogger.profileDetails!),
                 const SizedBox(height: 16),
               ],
-
-              // Website section
-              const Text(
-                'Blog URL',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _domainLinkController,
-                decoration: const InputDecoration(
-                  hintText: 'https://yourblog.com',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
 
               const Text(
                 'Main Tags',
@@ -545,8 +538,116 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
                   label: const Text('Edit Profile'),
                 ),
               ),
+              const SizedBox(height: 24),
+              const Text(
+                'My Uploaded Blogs',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildMyBlogsSection(),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMyBlogsSection() {
+    final Query<Map<String, dynamic>> myBlogsQuery = _firestore
+        .collection('blogs')
+        .where('uploadedBy', isEqualTo: widget.user.uid)
+        .orderBy('uploadedAt', descending: true);
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: myBlogsQuery.snapshots(),
+      builder: (
+        BuildContext context,
+        AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot,
+      ) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Text('Failed to load your blogs: ${snapshot.error}');
+        }
+
+        final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs =
+            snapshot.data?.docs ?? [];
+
+        if (docs.isEmpty) {
+          return const Text('You have not uploaded any blogs yet.');
+        }
+
+        return ListView.builder(
+          itemCount: docs.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemBuilder: (BuildContext context, int index) {
+            final Map<String, dynamic> data = docs[index].data();
+            final String title = data['title'] as String? ?? '';
+            final String description = data['description'] as String? ?? '';
+            final String domainLink = data['domainLink'] as String? ?? '';
+            final Timestamp? uploadedAt = data['uploadedAt'] as Timestamp?;
+            final List<dynamic> tags = data['tags'] as List<dynamic>? ?? [];
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    if (description.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(description),
+                    ],
+                    if (domainLink.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        domainLink,
+                        style: const TextStyle(
+                          color: Colors.blue,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ],
+                    if (uploadedAt != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Uploaded: ${uploadedAt.toDate().toLocal().toString().split('.').first}',
+                      ),
+                    ],
+                    if (tags.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: tags
+                            .map<Widget>(
+                              (dynamic tag) => Chip(label: Text('$tag')),
+                            )
+                            .toList(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );

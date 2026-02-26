@@ -163,24 +163,6 @@ class _ModerationCard extends StatelessWidget {
               const SizedBox(height: 12),
             ],
 
-            // Domain link
-            if (blogger.domainLink != null &&
-                blogger.domainLink!.isNotEmpty) ...[
-              const Text(
-                'Website:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                blogger.domainLink!,
-                style: const TextStyle(
-                  color: Colors.blue,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-
             // Tags
             if (blogger.tags.isNotEmpty) ...[
               const Text(

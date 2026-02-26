@@ -27,7 +27,6 @@ class BloggerService {
     String userId,
     String displayName,
     String? profileDetails,
-    String? domainLink,
     GeoPoint? location,
     List<String> tags,
   ) async {
@@ -35,7 +34,6 @@ class BloggerService {
       await _firestore.collection(_usersCollection).doc(userId).set({
         'displayName': displayName,
         'profileDetails': profileDetails,
-        'domainLink': domainLink,
         'location': location,
         'tags': tags,
         'updatedAt': FieldValue.serverTimestamp(),

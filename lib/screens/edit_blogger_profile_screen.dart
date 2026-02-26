@@ -22,7 +22,6 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
   final BloggerService _bloggerService = BloggerService();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
-  final TextEditingController _domainLinkController = TextEditingController();
   final TextEditingController _latitudeController = TextEditingController();
   final TextEditingController _longitudeController = TextEditingController();
 
@@ -53,7 +52,6 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
     if (widget.blogger != null) {
       _nameController.text = widget.blogger!.displayName;
       _bioController.text = widget.blogger!.profileDetails ?? '';
-      _domainLinkController.text = widget.blogger!.domainLink ?? '';
       _selectedTags = List.from(widget.blogger!.tags);
 
       if (widget.blogger!.location != null) {
@@ -69,7 +67,6 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
   void dispose() {
     _nameController.dispose();
     _bioController.dispose();
-    _domainLinkController.dispose();
     _latitudeController.dispose();
     _longitudeController.dispose();
     super.dispose();
@@ -78,7 +75,6 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
   Future<void> _saveProfile() async {
     final String name = _nameController.text.trim();
     final String bio = _bioController.text.trim();
-    final String domainLink = _domainLinkController.text.trim();
     final String latitude = _latitudeController.text.trim();
     final String longitude = _longitudeController.text.trim();
 
@@ -118,7 +114,6 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
         widget.userId,
         name,
         bio.isEmpty ? null : bio,
-        domainLink.isEmpty ? null : domainLink,
         location,
         _selectedTags,
       );
@@ -174,17 +169,6 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
                 labelText: 'Bio / Profile Details',
                 border: OutlineInputBorder(),
                 helperText: 'Tell us about yourself and your work',
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Domain Link field
-            TextField(
-              controller: _domainLinkController,
-              decoration: const InputDecoration(
-                labelText: 'Website / Blog URL',
-                border: OutlineInputBorder(),
-                helperText: 'https://example.com',
               ),
             ),
             const SizedBox(height: 16),

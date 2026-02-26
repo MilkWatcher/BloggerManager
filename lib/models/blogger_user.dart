@@ -6,7 +6,6 @@ class BloggerUser {
   final String displayName;
   final GeoPoint? location;
   final String? areaCode;
-  final String? domainLink;
   final String? profileDetails;
   final List<String> tags;
   final String verificationStatus; // Pending, Approved, Denied
@@ -20,7 +19,6 @@ class BloggerUser {
     required this.displayName,
     this.location,
     this.areaCode,
-    this.domainLink,
     this.profileDetails,
     this.tags = const [],
     this.verificationStatus = 'Pending',
@@ -37,7 +35,6 @@ class BloggerUser {
       'displayName': displayName,
       'location': location,
       'areaCode': areaCode,
-      'domainLink': domainLink,
       'profileDetails': profileDetails,
       'tags': tags,
       'verificationStatus': verificationStatus,
@@ -55,7 +52,6 @@ class BloggerUser {
       displayName: json['displayName'] as String? ?? '',
       location: json['location'] as GeoPoint?,
       areaCode: json['areaCode'] as String?,
-      domainLink: json['domainLink'] as String?,
       profileDetails: json['profileDetails'] as String?,
       tags: List<String>.from(json['tags'] as List? ?? []),
       verificationStatus: json['verificationStatus'] as String? ?? 'Pending',
@@ -72,7 +68,6 @@ class BloggerUser {
     String? displayName,
     GeoPoint? location,
     String? areaCode,
-    String? domainLink,
     String? profileDetails,
     List<String>? tags,
     String? verificationStatus,
@@ -86,7 +81,6 @@ class BloggerUser {
       displayName: displayName ?? this.displayName,
       location: location ?? this.location,
       areaCode: areaCode ?? this.areaCode,
-      domainLink: domainLink ?? this.domainLink,
       profileDetails: profileDetails ?? this.profileDetails,
       tags: tags ?? this.tags,
       verificationStatus: verificationStatus ?? this.verificationStatus,

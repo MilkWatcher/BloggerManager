@@ -37,6 +37,27 @@ service cloud.firestore {
       // Prevent deletion of profiles (soft delete only via custom claim or admin)
       allow delete: if false;
     }
+
+    // Blogs Collection
+    match /blogs/{blogId} {
+      // Allow authenticated users to read all blogs
+      allow read: if isAuthenticated();
+
+      // Allow authenticated users to create blog entries
+      allow create: if isAuthenticated() &&
+                       request.resource.data.keys().hasAll([
+                         'title', 'domainLink', 'uploadedAt', 'uploadedBy'
+                       ]) &&
+                       request.resource.data.uploadedBy == request.auth.uid;
+
+      // Allow authors to update their own blog entries
+      allow update: if isAuthenticated() &&
+                       resource.data.uploadedBy == request.auth.uid;
+
+      // Allow authors to delete their own blog entries
+      allow delete: if isAuthenticated() &&
+                       resource.data.uploadedBy == request.auth.uid;
+    }
     
     // Future: Ratings Collection (when implemented)
     match /ratings/{ratingId} {

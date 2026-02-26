@@ -33,7 +33,7 @@ class _DiscoverBloggersScreenState extends State<DiscoverBloggersScreen> {
     'Music',
   ];
 
-  late List<String> _selectedSearchTags = [];
+  final List<String> _selectedSearchTags = [];
 
   @override
   void initState() {
@@ -236,29 +236,6 @@ class _BloggerCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
-
-            // Domain link
-            if (blogger.domainLink != null && blogger.domainLink!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    const Icon(Icons.link, size: 16),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        blogger.domainLink!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.blue,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
 
             // Tags
             if (blogger.tags.isNotEmpty) ...[
