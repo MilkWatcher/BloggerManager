@@ -369,8 +369,6 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String localTime = DateTime.now().toLocal().toString().split('.').first;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditMode ? 'Edit Blog' : 'Upload Blog'),
@@ -431,15 +429,6 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
                 label: Text(
                   _isPickingImage ? 'Uploading...' : 'Upload Blog Image',
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              readOnly: true,
-              decoration: InputDecoration(
-                labelText: 'Uploaded At',
-                border: const OutlineInputBorder(),
-                hintText: localTime,
               ),
             ),
             const SizedBox(height: 16),
