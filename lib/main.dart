@@ -168,6 +168,7 @@ class _AuthScreenState extends State<AuthScreen> {
             builder: (context) => CompleteProfileScreen(user: user),
           ),
         );
+        return;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
