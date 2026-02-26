@@ -6,6 +6,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
+import 'blogger_detail_screen.dart';
+
 enum BloggerGeoSearchMode {
   km5,
   km10,
@@ -371,48 +373,60 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
       distanceText = '${(distanceMeters / 1000).toStringAsFixed(1)} km away';
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(child: _buildProfileImage(data)),
-            const SizedBox(height: 10),
-            Text(
-              displayName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (BuildContext context) => BloggerDetailScreen(
+              bloggerId: doc.id,
             ),
-            const SizedBox(height: 6),
-            Text(
-              [city, county].where((String part) => part.isNotEmpty).join(', ').isEmpty
-                  ? 'Location unavailable'
-                  : [city, county].where((String part) => part.isNotEmpty).join(', '),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (distanceText != null) ...[
-              const SizedBox(height: 4),
+          ),
+        );
+      },
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(child: _buildProfileImage(data)),
+              const SizedBox(height: 10),
               Text(
-                distanceText,
-                style: const TextStyle(fontSize: 12),
+                displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
+              const SizedBox(height: 6),
+              Text(
+                [city, county].where((String part) => part.isNotEmpty).join(', ').isEmpty
+                    ? 'Location unavailable'
+                    : [city, county].where((String part) => part.isNotEmpty).join(', '),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (distanceText != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  distanceText,
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+              const SizedBox(height: 8),
+              if (tags.isEmpty)
+                const Text('No tags yet')
+              else
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: tags
+                      .take(6)
+                      .map((String tag) => Chip(label: Text(tag)))
+                      .toList(),
+                ),
             ],
-            const SizedBox(height: 8),
-            if (tags.isEmpty)
-              const Text('No tags yet')
-            else
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: tags
-                    .take(6)
-                    .map((String tag) => Chip(label: Text(tag)))
-                    .toList(),
-              ),
-          ],
+          ),
         ),
       ),
     );
