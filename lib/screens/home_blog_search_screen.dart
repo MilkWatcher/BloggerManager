@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -6,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'dart:typed_data';
+import '../services/blogger_service.dart';
 
 enum GeoSearchMode {
   km5,
@@ -340,6 +342,131 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
         const SnackBar(content: Text('Could not open Google Maps.')),
       );
     }
+  }
+
+  Future<void> _showReportDialog(
+    BuildContext context, {
+    required String targetType,
+    required String targetId,
+    required String targetName,
+  }) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final bloggerService = BloggerService();
+    final alreadyReported = await bloggerService.hasUserReported(currentUser.uid, targetId);
+    if (!mounted) return;
+
+    if (alreadyReported) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You have already reported this content.')),
+      );
+      return;
+    }
+
+    String? selectedReason;
+    final detailsController = TextEditingController();
+
+    final bool? submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.flag, color: Colors.red.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('Report ${targetType == 'blog' ? 'Blog' : 'Blogger'}')),
+                ],
+              ),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      targetName,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: selectedReason,
+                      decoration: const InputDecoration(
+                        labelText: 'Reason',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'Spam', child: Text('Spam')),
+                        DropdownMenuItem(value: 'Plagiarism', child: Text('Plagiarism')),
+                        DropdownMenuItem(value: 'Harmful Content', child: Text('Harmful Content')),
+                        DropdownMenuItem(value: 'Inaccurate Info', child: Text('Inaccurate Info')),
+                        DropdownMenuItem(value: 'Inappropriate', child: Text('Inappropriate')),
+                        DropdownMenuItem(value: 'Other', child: Text('Other')),
+                      ],
+                      onChanged: (value) => setDialogState(() => selectedReason = value),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: detailsController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Additional details (optional)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: selectedReason == null
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade700,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Submit Report'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (submitted == true && selectedReason != null) {
+      try {
+        await bloggerService.submitReport(
+          reporterId: currentUser.uid,
+          reporterEmail: currentUser.email ?? '',
+          targetType: targetType,
+          targetId: targetId,
+          targetName: targetName,
+          reason: selectedReason!,
+          details: detailsController.text.trim().isEmpty ? null : detailsController.text.trim(),
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Report submitted. Thank you.')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to submit report: $e')),
+        );
+      }
+    }
+
+    detailsController.dispose();
   }
 
   Future<void> _openBlogLinkWithWarning(String domainLink) async {
@@ -701,7 +828,9 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
           itemCount: filtered.length,
           itemBuilder: (BuildContext context, int index) {
             final Map<String, dynamic> data = filtered[index].data();
+            final String blogId = filtered[index].id;
             final String title = data['title'] as String? ?? '';
+            final String uploadedBy = data['uploadedBy'] as String? ?? '';
             final String description = data['description'] as String? ?? '';
             final String domainLink = data['domainLink'] as String? ?? '';
             final String city = data['city'] as String? ?? '';
@@ -813,6 +942,21 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
                                 icon: const Icon(Icons.open_in_new),
                                 label: const Text('Visit Blog'),
                               ),
+                              if (uploadedBy != FirebaseAuth.instance.currentUser?.uid)
+                                OutlinedButton.icon(
+                                  onPressed: () => _showReportDialog(
+                                    context,
+                                    targetType: 'blog',
+                                    targetId: blogId,
+                                    targetName: title,
+                                  ),
+                                  icon: const Icon(Icons.flag_outlined, size: 18),
+                                  label: const Text('Report'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red.shade700,
+                                    side: BorderSide(color: Colors.red.shade200),
+                                  ),
+                                ),
                             ],
                           ),
                         ],

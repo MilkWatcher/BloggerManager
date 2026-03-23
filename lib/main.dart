@@ -11,10 +11,15 @@ import 'dart:developer' as developer;
 import 'firebase_options.dart';
 import 'models/blogger_user.dart';
 import 'services/google_geocoding_service.dart';
+import 'services/auth_service.dart';
 import 'screens/browsable_bloggers_screen.dart';
 import 'screens/edit_blogger_profile_screen.dart';
 import 'screens/home_blog_search_screen.dart';
 import 'screens/upload_blog_screen.dart';
+import 'screens/moderation_dashboard_screen.dart';
+import 'screens/force_password_change_screen.dart';
+import 'screens/email_verification_screen.dart';
+import 'screens/tos_acceptance_screen.dart';
 
 Widget _buildLogoTitle(String text) {
   return Row(
@@ -121,19 +126,208 @@ class AuthGate extends StatelessWidget {
               }
 
               final Map<String, dynamic>? userData = userSnapshot.data?.data();
+
+              // Check ban status
+              final String userStatus = userData?['status'] as String? ?? 'active';
+              if (userStatus == 'banned') {
+                final DateTime? banExpiry = (userData?['banExpiry'] as Timestamp?)?.toDate();
+                if (banExpiry != null && banExpiry.isAfter(DateTime.now())) {
+                  return _BannedScreen(banExpiry: banExpiry, reason: null);
+                }
+                // Auto-unban if expired
+                if (banExpiry != null && banExpiry.isBefore(DateTime.now())) {
+                  firestore.collection('users').doc(user.uid).set({
+                    'status': 'active',
+                    'banExpiry': null,
+                    'updatedAt': FieldValue.serverTimestamp(),
+                  }, SetOptions(merge: true));
+                }
+              }
+
+              // Check if password change is required
+              final bool mustChangePassword = userData?['mustChangePassword'] as bool? ?? false;
+              if (mustChangePassword) {
+                return const ForcePasswordChangeScreen();
+              }
+
+              // Check email verification (skip for admin/moderator)
+              final String userRole = userData?['role'] as String? ?? 'blogger';
+              if (userRole == 'blogger' && !user.emailVerified) {
+                return EmailVerificationScreen(user: user);
+              }
+
+              // Check ToS acceptance
+              final String? tosVersion = userData?['tosVersion'] as String?;
+              if (tosVersion != currentTosVersion) {
+                return TosAcceptanceScreen(user: user);
+              }
+
               final bool profileSetupCompleted = _isProfileComplete(userData);
 
               if (!profileSetupCompleted) {
                 return CompleteProfileScreen(user: user);
               }
 
-              return ProfileDashboardScreen(user: user);
+              return _PostLoginGate(user: user);
             },
           );
         }
 
         return const AuthScreen();
       },
+    );
+  }
+}
+
+/// Shows notification popups after login, then goes to dashboard.
+class _PostLoginGate extends StatefulWidget {
+  final User user;
+  const _PostLoginGate({required this.user});
+
+  @override
+  State<_PostLoginGate> createState() => _PostLoginGateState();
+}
+
+class _PostLoginGateState extends State<_PostLoginGate> {
+  final AuthService _authService = AuthService();
+  bool _notificationsChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkNotifications();
+  }
+
+  Future<void> _checkNotifications() async {
+    try {
+      final notifications = await _authService.getUnacknowledgedNotifications();
+      if (!mounted) return;
+
+      for (final notification in notifications) {
+        if (notification.type == 'warn') {
+          await showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Row(
+                children: const [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Text('Warning'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(notification.message ?? 'You have received a warning.'),
+                  if (notification.reason != null &&
+                      notification.reason!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text('Reason: ${notification.reason}',
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                  ],
+                ],
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Acknowledge'),
+                ),
+              ],
+            ),
+          );
+          await _authService.acknowledgeNotification(notification.id);
+        }
+      }
+    } catch (e) {
+      developer.log('Error checking notifications: $e', error: e, name: 'PostLoginGate');
+    }
+
+    if (mounted) {
+      setState(() {
+        _notificationsChecked = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_notificationsChecked) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return ProfileDashboardScreen(user: widget.user);
+  }
+}
+
+/// Blocking screen shown to banned users
+class _BannedScreen extends StatelessWidget {
+  final DateTime banExpiry;
+  final String? reason;
+  const _BannedScreen({required this.banExpiry, this.reason});
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = banExpiry.difference(DateTime.now());
+    String remainingText;
+    if (remaining.inDays > 0) {
+      remainingText = '${remaining.inDays} day(s)';
+    } else if (remaining.inHours > 0) {
+      remainingText = '${remaining.inHours} hour(s)';
+    } else {
+      remainingText = '${remaining.inMinutes} minute(s)';
+    }
+
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.block, size: 64, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Account Suspended',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Your account has been temporarily banned.',
+                      textAlign: TextAlign.center,
+                    ),
+                    if (reason != null && reason!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text('Reason: $reason',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ],
+                    const SizedBox(height: 12),
+                    Text('Remaining: $remainingText'),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Ban expires: ${banExpiry.toLocal().toString().split('.').first}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () async {
+                        await FirebaseAuth.instance.signOut();
+                      },
+                      child: const Text('Sign Out'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -220,6 +414,11 @@ class _AuthScreenState extends State<AuthScreen> {
       final User? user = credential.user;
       if (user == null) {
         throw Exception('Authentication returned no user.');
+      }
+
+      // Send verification email on signup
+      if (!_isLoginMode && !user.emailVerified) {
+        await user.sendEmailVerification();
       }
 
       await _firestore.collection('users').doc(user.uid).set({
@@ -836,12 +1035,25 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
   );
   int _selectedIndex = 0;
   GeoPoint? _currentUserLocation;
+  String _userRole = 'blogger';
 
   @override
   void initState() {
     super.initState();
     _currentUserLocation = widget.initialUserLocation;
+    _loadUserRole();
   }
+
+  Future<void> _loadUserRole() async {
+    final doc = await _firestore.collection('users').doc(widget.user.uid).get();
+    if (mounted) {
+      setState(() {
+        _userRole = doc.data()?['role'] as String? ?? 'blogger';
+      });
+    }
+  }
+
+  bool get _isModerator => _userRole == 'admin' || _userRole == 'moderator';
 
   @override
   void dispose() {
@@ -896,19 +1108,25 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
             _selectedIndex = index;
           });
         },
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
+        type: _isModerator ? BottomNavigationBarType.fixed : BottomNavigationBarType.fixed,
+        items: <BottomNavigationBarItem>[
+          const BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Home',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'My Profile',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.groups),
             label: 'Bloggers',
           ),
+          if (_isModerator)
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.shield),
+              label: 'Moderation',
+            ),
         ],
       ),
     );
@@ -937,6 +1155,11 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
             });
           },
         );
+      case 3:
+        if (_isModerator) {
+          return ModerationDashboardScreen(currentUserRole: _userRole);
+        }
+        return _buildProfilePage();
       default:
         return _buildProfilePage();
     }

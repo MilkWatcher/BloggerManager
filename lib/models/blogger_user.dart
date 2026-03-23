@@ -18,6 +18,12 @@ class BloggerUser {
   final String? facebookUrl;
   final List<String> tags;
   final String verificationStatus; // Pending, Approved, Denied
+  final String role; // admin, moderator, blogger
+  final String status; // active, banned
+  final DateTime? banExpiry;
+  final bool mustChangePassword;
+  final DateTime? tosAcceptedAt;
+  final String? tosVersion;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? lastLoginAt;
@@ -40,6 +46,12 @@ class BloggerUser {
     this.facebookUrl,
     this.tags = const [],
     this.verificationStatus = 'Pending',
+    this.role = 'blogger',
+    this.status = 'active',
+    this.banExpiry,
+    this.mustChangePassword = false,
+    this.tosAcceptedAt,
+    this.tosVersion,
     required this.createdAt,
     required this.updatedAt,
     this.lastLoginAt,
@@ -65,6 +77,12 @@ class BloggerUser {
       'facebookUrl': facebookUrl,
       'tags': tags,
       'verificationStatus': verificationStatus,
+      'role': role,
+      'status': status,
+      'banExpiry': banExpiry,
+      'mustChangePassword': mustChangePassword,
+      'tosAcceptedAt': tosAcceptedAt,
+      'tosVersion': tosVersion,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'lastLoginAt': lastLoginAt,
@@ -91,6 +109,12 @@ class BloggerUser {
       facebookUrl: json['facebookUrl'] as String?,
       tags: List<String>.from(json['tags'] as List? ?? []),
       verificationStatus: json['verificationStatus'] as String? ?? 'Pending',
+      role: json['role'] as String? ?? 'blogger',
+      status: json['status'] as String? ?? 'active',
+      banExpiry: (json['banExpiry'] as Timestamp?)?.toDate(),
+      mustChangePassword: json['mustChangePassword'] as bool? ?? false,
+      tosAcceptedAt: (json['tosAcceptedAt'] as Timestamp?)?.toDate(),
+      tosVersion: json['tosVersion'] as String?,
       createdAt: (json['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (json['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       lastLoginAt: (json['lastLoginAt'] as Timestamp?)?.toDate(),
@@ -116,6 +140,12 @@ class BloggerUser {
     String? facebookUrl,
     List<String>? tags,
     String? verificationStatus,
+    String? role,
+    String? status,
+    DateTime? banExpiry,
+    bool? mustChangePassword,
+    DateTime? tosAcceptedAt,
+    String? tosVersion,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? lastLoginAt,
@@ -138,6 +168,12 @@ class BloggerUser {
       facebookUrl: facebookUrl ?? this.facebookUrl,
       tags: tags ?? this.tags,
       verificationStatus: verificationStatus ?? this.verificationStatus,
+      role: role ?? this.role,
+      status: status ?? this.status,
+      banExpiry: banExpiry ?? this.banExpiry,
+      mustChangePassword: mustChangePassword ?? this.mustChangePassword,
+      tosAcceptedAt: tosAcceptedAt ?? this.tosAcceptedAt,
+      tosVersion: tosVersion ?? this.tosVersion,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       lastLoginAt: lastLoginAt ?? this.lastLoginAt,

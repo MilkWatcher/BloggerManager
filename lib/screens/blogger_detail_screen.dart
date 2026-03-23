@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../services/blogger_service.dart';
 
 class BloggerDetailScreen extends StatelessWidget {
   const BloggerDetailScreen({
@@ -147,6 +149,7 @@ class BloggerDetailScreen extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           itemBuilder: (BuildContext context, int index) {
             final Map<String, dynamic> data = docs[index].data();
+            final String blogId = docs[index].id;
             final String title = data['title'] as String? ?? '';
             final String description = data['description'] as String? ?? '';
             final String city = data['city'] as String? ?? '';
@@ -208,14 +211,40 @@ class BloggerDetailScreen extends StatelessWidget {
                               const SizedBox(height: 8),
                               Align(
                                 alignment: Alignment.bottomRight,
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  alignment: Alignment.centerRight,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () => _openBlogLink(context, domainLink),
-                                    icon: const Icon(Icons.open_in_new),
-                                    label: const Text('Visit Blog'),
-                                  ),
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  alignment: WrapAlignment.end,
+                                  children: [
+                                    if (bloggerId != FirebaseAuth.instance.currentUser?.uid)
+                                      FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerRight,
+                                        child: OutlinedButton.icon(
+                                          onPressed: () => _showReportDialog(
+                                            context,
+                                            targetType: 'blog',
+                                            targetId: blogId,
+                                            targetName: title,
+                                          ),
+                                          icon: const Icon(Icons.flag_outlined, size: 16),
+                                          label: const Text('Report'),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: Colors.red.shade700,
+                                            side: BorderSide(color: Colors.red.shade200),
+                                          ),
+                                        ),
+                                      ),
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerRight,
+                                      child: OutlinedButton.icon(
+                                        onPressed: () => _openBlogLink(context, domainLink),
+                                        icon: const Icon(Icons.open_in_new),
+                                        label: const Text('Visit Blog'),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -231,6 +260,131 @@ class BloggerDetailScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _showReportDialog(
+    BuildContext context, {
+    required String targetType,
+    required String targetId,
+    required String targetName,
+  }) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final bloggerService = BloggerService();
+    final alreadyReported = await bloggerService.hasUserReported(currentUser.uid, targetId);
+    if (!context.mounted) return;
+
+    if (alreadyReported) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You have already reported this.')),
+      );
+      return;
+    }
+
+    String? selectedReason;
+    final detailsController = TextEditingController();
+
+    final bool? submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.flag, color: Colors.red.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('Report ${targetType == 'blog' ? 'Blog' : 'Blogger'}')),
+                ],
+              ),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      targetName,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: selectedReason,
+                      decoration: const InputDecoration(
+                        labelText: 'Reason',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'Spam', child: Text('Spam')),
+                        DropdownMenuItem(value: 'Plagiarism', child: Text('Plagiarism')),
+                        DropdownMenuItem(value: 'Harmful Content', child: Text('Harmful Content')),
+                        DropdownMenuItem(value: 'Inaccurate Info', child: Text('Inaccurate Info')),
+                        DropdownMenuItem(value: 'Inappropriate', child: Text('Inappropriate')),
+                        DropdownMenuItem(value: 'Other', child: Text('Other')),
+                      ],
+                      onChanged: (value) => setDialogState(() => selectedReason = value),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: detailsController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Additional details (optional)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: selectedReason == null
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade700,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Submit Report'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (submitted == true && selectedReason != null) {
+      try {
+        await bloggerService.submitReport(
+          reporterId: currentUser.uid,
+          reporterEmail: currentUser.email ?? '',
+          targetType: targetType,
+          targetId: targetId,
+          targetName: targetName,
+          reason: selectedReason!,
+          details: detailsController.text.trim().isEmpty ? null : detailsController.text.trim(),
+        );
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Report submitted. Thank you.')),
+        );
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to submit report: $e')),
+        );
+      }
+    }
+
+    detailsController.dispose();
   }
 
   @override
@@ -384,6 +538,23 @@ class BloggerDetailScreen extends StatelessWidget {
                                       .map((String tag) => Chip(label: Text(tag)))
                                       .toList(),
                                 ),
+                              if (bloggerId != FirebaseAuth.instance.currentUser?.uid) ...[
+                                const SizedBox(height: 12),
+                                OutlinedButton.icon(
+                                  onPressed: () => _showReportDialog(
+                                    context,
+                                    targetType: 'blogger',
+                                    targetId: bloggerId,
+                                    targetName: displayName,
+                                  ),
+                                  icon: const Icon(Icons.flag_outlined, size: 18),
+                                  label: const Text('Report Blogger'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red.shade700,
+                                    side: BorderSide(color: Colors.red.shade200),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
