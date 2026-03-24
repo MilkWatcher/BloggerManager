@@ -8,6 +8,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../services/google_geocoding_service.dart';
+import '../services/automod_service.dart';
+import '../services/blogger_service.dart';
 
 class UploadBlogScreen extends StatefulWidget {
   const UploadBlogScreen({
@@ -265,6 +267,32 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('You must be logged in to upload.')),
+      );
+      return;
+    }
+
+    // ─── Automoderation check ──────────────────────────────────
+    final automodResult = AutomodService.containsBlacklistedWords(
+      title: title,
+      description: description,
+    );
+    if (automodResult.flagged) {
+      // Log the blocked attempt
+      await BloggerService().logAutomodAction(
+        userId: user.uid,
+        blogTitle: title,
+        matchedWords: automodResult.matchedWords,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Your content was blocked by automoderation. '
+            'Flagged words: ${automodResult.matchedWords.join(', ')}',
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
       );
       return;
     }

@@ -608,4 +608,39 @@ class BloggerService {
         'resolvedAt': FieldValue.serverTimestamp(),
     });
   }
+
+  // ─── BLOG FETCH BY ID ────────────────────────────────────────
+
+  /// Get a single blog by its document ID.
+  Future<Map<String, dynamic>?> getBlogById(String blogId) async {
+    try {
+      final doc = await _firestore.collection(_blogsCollection).doc(blogId).get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        data['id'] = doc.id;
+        return data;
+      }
+      return null;
+    } catch (e) {
+      developer.log('Error getting blog by ID: $e', error: e, name: 'BloggerService');
+      return null;
+    }
+  }
+
+  // ─── AUTOMOD LOGGING ─────────────────────────────────────────
+
+  /// Log an automod action (blocked upload due to blacklisted words).
+  Future<void> logAutomodAction({
+    required String userId,
+    required String blogTitle,
+    required List<String> matchedWords,
+  }) async {
+    await _firestore.collection(_moderationLogsCollection).add({
+      'userId': userId,
+      'moderatorId': 'AUTOMOD',
+      'actionType': 'automod_block',
+      'reason': 'Blocked upload "$blogTitle" — flagged words: ${matchedWords.join(', ')}',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
 }

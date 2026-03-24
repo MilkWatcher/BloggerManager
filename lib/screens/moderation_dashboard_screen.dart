@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import '../models/blogger_user.dart';
 import '../models/moderation_log.dart';
 import '../models/report.dart';
 import '../services/blogger_service.dart';
+import 'blogger_detail_screen.dart';
 
 class ModerationDashboardScreen extends StatefulWidget {
   final String currentUserRole;
@@ -29,7 +31,7 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: _isAdmin ? 6 : 5,
+      length: _isAdmin ? 5 : 4,
       vsync: this,
     );
   }
@@ -48,7 +50,6 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
           controller: _tabController,
           isScrollable: true,
           tabs: [
-            const Tab(text: 'Pending Approvals'),
             const Tab(text: 'User Management'),
             const Tab(text: 'Content Moderation'),
             const Tab(text: 'Reports'),
@@ -60,7 +61,6 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
           child: TabBarView(
             controller: _tabController,
             children: [
-              _PendingApprovalsTab(bloggerService: _bloggerService),
               _UserManagementTab(
                 bloggerService: _bloggerService,
                 currentUserId: _currentUserId,
@@ -80,138 +80,6 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
           ),
         ),
       ],
-    );
-  }
-}
-
-// ─── PENDING APPROVALS TAB ────────────────────────────────────────
-
-class _PendingApprovalsTab extends StatefulWidget {
-  final BloggerService bloggerService;
-  const _PendingApprovalsTab({required this.bloggerService});
-
-  @override
-  State<_PendingApprovalsTab> createState() => _PendingApprovalsTabState();
-}
-
-class _PendingApprovalsTabState extends State<_PendingApprovalsTab> {
-  List<BloggerUser>? _pendingBloggers;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() => _isLoading = true);
-    try {
-      final bloggers = await widget.bloggerService.getPendingBloggers();
-      if (mounted) setState(() => _pendingBloggers = bloggers);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
-
-    if (_pendingBloggers == null || _pendingBloggers!.isEmpty) {
-      return const Center(child: Text('No pending bloggers to review.'));
-    }
-
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: _pendingBloggers!.length,
-        itemBuilder: (context, index) {
-          final blogger = _pendingBloggers![index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(blogger.displayName,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 4),
-                  Text(blogger.email,
-                      style: Theme.of(context).textTheme.bodySmall),
-                  if (blogger.profileDetails != null &&
-                      blogger.profileDetails!.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(blogger.profileDetails!),
-                  ],
-                  if (blogger.tags.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: blogger.tags
-                          .map((tag) => Chip(
-                              label: Text(tag,
-                                  style: const TextStyle(fontSize: 12))))
-                          .toList(),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          await widget.bloggerService
-                              .approveBlogger(blogger.userId);
-                          if (mounted) {
-                            messenger.showSnackBar(
-                                const SnackBar(
-                                    content: Text('Blogger approved!')));
-                            _load();
-                          }
-                        },
-                        icon: const Icon(Icons.check),
-                        label: const Text('Approve'),
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          await widget.bloggerService
-                              .denyBlogger(blogger.userId);
-                          if (mounted) {
-                            messenger.showSnackBar(
-                                const SnackBar(
-                                    content: Text('Blogger denied.')));
-                            _load();
-                          }
-                        },
-                        icon: const Icon(Icons.close),
-                        label: const Text('Deny'),
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
     );
   }
 }
@@ -519,6 +387,16 @@ class _UserManagementTabState extends State<_UserManagementTab> {
                     itemBuilder: (context, index) {
                       final blogger = _filtered[index];
                       final isBanned = blogger.status == 'banned';
+
+                      // Decode profile image
+                      Uint8List? profileBytes;
+                      if (blogger.profileImageBase64 != null &&
+                          blogger.profileImageBase64!.isNotEmpty) {
+                        try {
+                          profileBytes = base64Decode(blogger.profileImageBase64!);
+                        } catch (_) {}
+                      }
+
                       return Card(
                         margin: const EdgeInsets.only(bottom: 10),
                         child: Padding(
@@ -528,6 +406,16 @@ class _UserManagementTabState extends State<_UserManagementTab> {
                             children: [
                               Row(
                                 children: [
+                                  CircleAvatar(
+                                    radius: 22,
+                                    backgroundImage: profileBytes != null
+                                        ? MemoryImage(profileBytes)
+                                        : null,
+                                    child: profileBytes == null
+                                        ? const Icon(Icons.person)
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment:
@@ -625,6 +513,140 @@ class _UserManagementTabState extends State<_UserManagementTab> {
       ],
     );
   }
+}
+
+// ─── SHARED BLOG PREVIEW DIALOG ───────────────────────────────────
+
+void _showBlogPreviewDialog(BuildContext context, Map<String, dynamic> blog) {
+  final title = blog['title'] as String? ?? 'Untitled';
+  final description = blog['description'] as String? ?? '';
+  final author = blog['authorDisplayName'] as String? ?? 'Unknown';
+  final domainLink = blog['domainLink'] as String? ?? '';
+  final tags = (blog['tags'] as List<dynamic>?)?.cast<String>() ?? [];
+  final cityCounty = blog['cityCounty'] as String? ?? '';
+  final country = blog['country'] as String? ?? '';
+  final uploadedAt = blog['uploadedAt'] as Timestamp?;
+  final blogImageBase64 = blog['blogImageBase64'] as String?;
+
+  Uint8List? imageBytes;
+  if (blogImageBase64 != null && blogImageBase64.isNotEmpty) {
+    try {
+      imageBytes = base64Decode(blogImageBase64);
+    } catch (_) {}
+  }
+
+  showDialog(
+    context: context,
+    builder: (ctx) => Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 650),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Row(
+                children: [
+                  const Icon(Icons.article, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(title,
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const Divider(),
+              // Image
+              if (imageBytes != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.memory(imageBytes,
+                      width: double.infinity,
+                      height: 200,
+                      fit: BoxFit.cover),
+                ),
+                const SizedBox(height: 12),
+              ],
+              // Author & date
+              Text('By $author',
+                  style: TextStyle(
+                      color: Colors.grey.shade700,
+                      fontWeight: FontWeight.w500)),
+              if (uploadedAt != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  uploadedAt.toDate().toLocal().toString().split('.').first,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ],
+              // Location
+              if (cityCounty.isNotEmpty || country.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.location_on,
+                        size: 14, color: Colors.grey.shade600),
+                    const SizedBox(width: 4),
+                    Text(
+                      [cityCounty, country]
+                          .where((s) => s.isNotEmpty)
+                          .join(', '),
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ],
+              // Description
+              if (description.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(description, style: const TextStyle(fontSize: 14)),
+              ],
+              // Tags
+              if (tags.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: tags
+                      .map((t) => Chip(
+                          label:
+                              Text(t, style: const TextStyle(fontSize: 11))))
+                      .toList(),
+                ),
+              ],
+              // Visit Blog button
+              if (domainLink.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      final uri = Uri.tryParse(domainLink);
+                      if (uri != null) launchUrl(uri);
+                    },
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    label: const Text('Visit Blog'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 // ─── CONTENT MODERATION TAB ───────────────────────────────────────
@@ -754,6 +776,23 @@ class _ContentModerationTabState extends State<_ContentModerationTab> {
     reasonController.dispose();
   }
 
+  void _showBlogDetailDialog(BuildContext context, Map<String, dynamic> blog) {
+    _showBlogPreviewDialog(context, blog);
+  }
+
+  void _showBloggerDetailDialog(BuildContext context, String bloggerId) {
+    if (bloggerId.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+          child: BloggerDetailScreen(bloggerId: bloggerId, asDialog: true),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
@@ -867,14 +906,36 @@ class _ContentModerationTabState extends State<_ContentModerationTab> {
                                       ),
                                     ],
                                     const SizedBox(height: 8),
-                                    ElevatedButton.icon(
-                                      onPressed: () => _deleteBlog(blog),
-                                      icon: const Icon(Icons.delete,
-                                          size: 16),
-                                      label: const Text('Delete'),
-                                      style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.red,
-                                          foregroundColor: Colors.white),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        OutlinedButton.icon(
+                                          onPressed: () => _showBlogDetailDialog(context, blog),
+                                          icon: const Icon(Icons.article, size: 16),
+                                          label: const Text('View Blog'),
+                                          style: OutlinedButton.styleFrom(
+                                              foregroundColor: Colors.blue),
+                                        ),
+                                        OutlinedButton.icon(
+                                          onPressed: () => _showBloggerDetailDialog(
+                                            context,
+                                            blog['uploadedBy'] as String? ?? '',
+                                          ),
+                                          icon: const Icon(Icons.person, size: 16),
+                                          label: const Text('View Blogger'),
+                                          style: OutlinedButton.styleFrom(
+                                              foregroundColor: Colors.deepPurple),
+                                        ),
+                                        ElevatedButton.icon(
+                                          onPressed: () => _deleteBlog(blog),
+                                          icon: const Icon(Icons.delete, size: 16),
+                                          label: const Text('Delete'),
+                                          style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                              foregroundColor: Colors.white),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -940,6 +1001,18 @@ class _ReportsTabState extends State<_ReportsTab> {
       default:
         return Colors.grey;
     }
+  }
+
+  Future<void> _viewReportedBlog(String blogId) async {
+    final blog = await widget.bloggerService.getBlogById(blogId);
+    if (!mounted) return;
+    if (blog == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Blog not found (may have been deleted).')),
+      );
+      return;
+    }
+    _showBlogPreviewDialog(context, blog);
   }
 
   Future<void> _updateStatus(Report report, String newStatus) async {
@@ -1145,6 +1218,43 @@ class _ReportsTabState extends State<_ReportsTab> {
                                     ),
                                   ),
                                 ],
+                                // View Blog / View Blogger buttons
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    if (report.targetType == 'blog')
+                                      OutlinedButton.icon(
+                                        onPressed: () => _viewReportedBlog(report.targetId),
+                                        icon: const Icon(Icons.article, size: 16),
+                                        label: const Text('View Blog'),
+                                        style: OutlinedButton.styleFrom(
+                                            foregroundColor: Colors.blue),
+                                      ),
+                                    if (report.targetType == 'blogger')
+                                      OutlinedButton.icon(
+                                        onPressed: () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (ctx) => Dialog(
+                                              child: ConstrainedBox(
+                                                constraints: const BoxConstraints(
+                                                    maxWidth: 500, maxHeight: 600),
+                                                child: BloggerDetailScreen(
+                                                    bloggerId: report.targetId,
+                                                    asDialog: true),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        icon: const Icon(Icons.person, size: 16),
+                                        label: const Text('View Blogger'),
+                                        style: OutlinedButton.styleFrom(
+                                            foregroundColor: Colors.deepPurple),
+                                      ),
+                                  ],
+                                ),
                                 if (report.status == 'pending' ||
                                     report.status == 'reviewed') ...[
                                   const SizedBox(height: 10),
@@ -1243,6 +1353,8 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
         return 'Delete Post';
       case 'delete_account':
         return 'Delete Account';
+      case 'automod_block':
+        return 'Automod Block';
       default:
         return action;
     }
@@ -1258,6 +1370,8 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
         return Colors.deepOrange;
       case 'delete_account':
         return Colors.red.shade900;
+      case 'automod_block':
+        return Colors.purple;
       default:
         return Colors.grey;
     }
@@ -1273,6 +1387,8 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
         return Icons.delete;
       case 'delete_account':
         return Icons.delete_forever;
+      case 'automod_block':
+        return Icons.shield;
       default:
         return Icons.info;
     }
@@ -1308,6 +1424,9 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
                   const DropdownMenuItem(
                       value: 'delete_account',
                       child: Text('Deleted Accounts')),
+                  const DropdownMenuItem(
+                      value: 'automod_block',
+                      child: Text('Automod Blocks')),
                 ],
                 onChanged: (value) => setState(() => _filterAction = value),
               ),
