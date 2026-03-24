@@ -74,7 +74,8 @@ service cloud.firestore {
     // Moderation logs collection — audit trail
     match /moderation_logs/{logId} {
       allow read: if isAdminOrModerator();
-      allow create: if isAdminOrModerator();
+      allow create: if isAdminOrModerator()
+        || (isAuthenticated() && request.resource.data.actionType == 'automod_block');
       allow update, delete: if false;
     }
 

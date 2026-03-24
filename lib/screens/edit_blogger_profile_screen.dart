@@ -295,9 +295,12 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
       appBar: AppBar(
         title: const Text('Edit Blogger Profile'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
@@ -453,6 +456,8 @@ class _EditBloggerProfileScreenState extends State<EditBloggerProfileScreen> {
             ),
           ],
         ),
+      ),
+      ),
       ),
     );
   }

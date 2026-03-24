@@ -943,9 +943,12 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       appBar: AppBar(
         title: _buildLogoTitle('Complete Your Profile'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
@@ -1087,6 +1090,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
             ),
           ],
         ),
+      ),
+      ),
       ),
     );
   }

@@ -599,6 +599,7 @@ class BloggerService {
     required String moderatorId,
     required String status,
     String? moderatorNotes,
+    String? targetName,
   }) async {
     await _firestore.collection(_reportsCollection).doc(reportId).update({
       'status': status,
@@ -607,9 +608,30 @@ class BloggerService {
       if (status == 'resolved' || status == 'dismissed')
         'resolvedAt': FieldValue.serverTimestamp(),
     });
+
+    // Log report action in moderation logs
+    await _firestore.collection(_moderationLogsCollection).add({
+      'userId': targetName ?? reportId,
+      'moderatorId': moderatorId,
+      'actionType': 'report_$status',
+      'reason': moderatorNotes ?? 'Report $status',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
   // ─── BLOG FETCH BY ID ────────────────────────────────────────
+
+  /// Look up a single user's displayName (returns uid if not found).
+  Future<String> getUserDisplayName(String userId) async {
+    if (userId == 'AUTOMOD') return 'Automod';
+    try {
+      final doc = await _firestore.collection(_usersCollection).doc(userId).get();
+      if (doc.exists && doc.data() != null) {
+        return (doc.data()!['displayName'] as String?) ?? userId;
+      }
+    } catch (_) {}
+    return userId;
+  }
 
   /// Get a single blog by its document ID.
   Future<Map<String, dynamic>?> getBlogById(String blogId) async {

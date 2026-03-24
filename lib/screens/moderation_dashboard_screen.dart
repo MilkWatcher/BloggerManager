@@ -1053,6 +1053,7 @@ class _ReportsTabState extends State<_ReportsTab> {
         moderatorId: widget.currentUserId,
         status: newStatus,
         moderatorNotes: (notes != null && notes.isNotEmpty) ? notes : null,
+        targetName: report.targetName,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1065,6 +1066,68 @@ class _ReportsTabState extends State<_ReportsTab> {
         SnackBar(content: Text('Failed to update report: $e')),
       );
     }
+  }
+
+  Future<void> _deleteReportedBlog(Report report) async {
+    final reasonController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Reported Blog'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Delete blog "${report.targetName}"?'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Reason (optional)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, foregroundColor: Colors.white),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      reasonController.dispose();
+      return;
+    }
+    try {
+      await widget.bloggerService.deleteBlog(
+        blogId: report.targetId,
+        moderatorId: widget.currentUserId,
+        reason: reasonController.text.trim().isNotEmpty
+            ? reasonController.text.trim()
+            : null,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Blog deleted.')),
+        );
+        _loadReports();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+    reasonController.dispose();
   }
 
   @override
@@ -1253,6 +1316,15 @@ class _ReportsTabState extends State<_ReportsTab> {
                                         style: OutlinedButton.styleFrom(
                                             foregroundColor: Colors.deepPurple),
                                       ),
+                                    if (report.targetType == 'blog')
+                                      ElevatedButton.icon(
+                                        onPressed: () => _deleteReportedBlog(report),
+                                        icon: const Icon(Icons.delete, size: 16),
+                                        label: const Text('Delete Content'),
+                                        style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.red,
+                                            foregroundColor: Colors.white),
+                                      ),
                                   ],
                                 ),
                                 if (report.status == 'pending' ||
@@ -1321,6 +1393,7 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
   List<ModerationLog> _logs = [];
   bool _isLoading = true;
   String? _filterAction;
+  final Map<String, String> _nameCache = {};
 
   @override
   void initState() {
@@ -1332,7 +1405,10 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
     setState(() => _isLoading = true);
     try {
       final logs = await widget.bloggerService.getModerationLogs();
-      if (mounted) setState(() => _logs = logs);
+      if (mounted) {
+        setState(() => _logs = logs);
+        await _resolveNames(logs);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -1342,6 +1418,22 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  Future<void> _resolveNames(List<ModerationLog> logs) async {
+    final ids = <String>{};
+    for (final log in logs) {
+      ids.add(log.userId);
+      ids.add(log.moderatorId);
+    }
+    ids.removeWhere((id) => _nameCache.containsKey(id));
+    for (final id in ids) {
+      final name = await widget.bloggerService.getUserDisplayName(id);
+      _nameCache[id] = name;
+    }
+    if (mounted) setState(() {});
+  }
+
+  String _displayName(String id) => _nameCache[id] ?? id;
 
   String _actionLabel(String action) {
     switch (action) {
@@ -1355,6 +1447,12 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
         return 'Delete Account';
       case 'automod_block':
         return 'Automod Block';
+      case 'report_reviewed':
+        return 'Report Reviewed';
+      case 'report_resolved':
+        return 'Report Resolved';
+      case 'report_dismissed':
+        return 'Report Dismissed';
       default:
         return action;
     }
@@ -1372,6 +1470,12 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
         return Colors.red.shade900;
       case 'automod_block':
         return Colors.purple;
+      case 'report_reviewed':
+        return Colors.blue;
+      case 'report_resolved':
+        return Colors.green;
+      case 'report_dismissed':
+        return Colors.grey;
       default:
         return Colors.grey;
     }
@@ -1389,6 +1493,12 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
         return Icons.delete_forever;
       case 'automod_block':
         return Icons.shield;
+      case 'report_reviewed':
+        return Icons.visibility;
+      case 'report_resolved':
+        return Icons.check_circle_outline;
+      case 'report_dismissed':
+        return Icons.cancel_outlined;
       default:
         return Icons.info;
     }
@@ -1413,20 +1523,29 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
               DropdownButton<String?>(
                 value: _filterAction,
                 hint: const Text('All actions'),
-                items: [
-                  const DropdownMenuItem<String?>(
+                items: const [
+                  DropdownMenuItem<String?>(
                       value: null, child: Text('All actions')),
-                  const DropdownMenuItem(value: 'ban', child: Text('Bans')),
-                  const DropdownMenuItem(
+                  DropdownMenuItem(value: 'ban', child: Text('Bans')),
+                  DropdownMenuItem(
                       value: 'warn', child: Text('Warnings')),
-                  const DropdownMenuItem(
+                  DropdownMenuItem(
                       value: 'delete_post', child: Text('Deleted Posts')),
-                  const DropdownMenuItem(
+                  DropdownMenuItem(
                       value: 'delete_account',
                       child: Text('Deleted Accounts')),
-                  const DropdownMenuItem(
+                  DropdownMenuItem(
                       value: 'automod_block',
                       child: Text('Automod Blocks')),
+                  DropdownMenuItem(
+                      value: 'report_reviewed',
+                      child: Text('Reports Reviewed')),
+                  DropdownMenuItem(
+                      value: 'report_resolved',
+                      child: Text('Reports Resolved')),
+                  DropdownMenuItem(
+                      value: 'report_dismissed',
+                      child: Text('Reports Dismissed')),
                 ],
                 onChanged: (value) => setState(() => _filterAction = value),
               ),
@@ -1460,8 +1579,8 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Target: ${log.userId}'),
-                            Text('By: ${log.moderatorId}'),
+                            Text('Target: ${_displayName(log.userId)}'),
+                            Text('By: ${_displayName(log.moderatorId)}'),
                             if (log.reason != null &&
                                 log.reason!.isNotEmpty)
                               Text('Reason: ${log.reason}'),

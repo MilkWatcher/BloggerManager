@@ -404,9 +404,12 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
       appBar: AppBar(
         title: Text(_isEditMode ? 'Edit Blog' : 'Upload Blog'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Card(
@@ -567,6 +570,8 @@ class _UploadBlogScreenState extends State<UploadBlogScreen> {
             ),
           ],
         ),
+      ),
+      ),
       ),
     );
   }
