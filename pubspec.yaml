@@ -43,6 +43,7 @@ dependencies:
   geocoding: ^4.0.0
   file_picker: ^8.0.7
   http: ^1.6.0
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:

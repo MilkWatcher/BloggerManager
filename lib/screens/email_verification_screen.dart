@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
 
 class EmailVerificationScreen extends StatefulWidget {
@@ -41,7 +42,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     if (_resendCooldown > 0) return;
     setState(() => _isSending = true);
     try {
-      await widget.user.sendEmailVerification();
+      final settings = kIsWeb
+          ? ActionCodeSettings(
+              url: Uri.base.origin,
+              handleCodeInApp: true,
+            )
+          : null;
+      await widget.user.sendEmailVerification(settings);
       if (!mounted) return;
       _startCooldown();
       ScaffoldMessenger.of(context).showSnackBar(

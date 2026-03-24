@@ -20,6 +20,9 @@ import 'screens/moderation_dashboard_screen.dart';
 import 'screens/force_password_change_screen.dart';
 import 'screens/email_verification_screen.dart';
 import 'screens/tos_acceptance_screen.dart';
+import 'screens/email_action_handler_screen.dart';
+import 'widgets/recaptcha_widget.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 Widget _buildLogoTitle(String text) {
   return Row(
@@ -41,17 +44,52 @@ Widget _buildLogoOnlyTitle() {
   );
 }
 
+// Parsed from URL query parameters for Firebase email action handling
+String? _actionMode;
+String? _actionOobCode;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final FirebaseApp app = await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   developer.log('Firebase projectId: ${app.options.projectId}', name: 'app.startup');
+
+  // Parse email action URL parameters (e.g. ?mode=verifyEmail&oobCode=...)
+  if (kIsWeb) {
+    final uri = Uri.base;
+    _actionMode = uri.queryParameters['mode'];
+    _actionOobCode = uri.queryParameters['oobCode'];
+  }
+
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool _handlingAction = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_actionMode != null && _actionOobCode != null) {
+      _handlingAction = true;
+    }
+  }
+
+  void _clearActionAndContinue() {
+    setState(() {
+      _actionMode = null;
+      _actionOobCode = null;
+      _handlingAction = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +104,13 @@ class MyApp extends StatelessWidget {
           surfaceTintColor: Colors.white,
         ),
       ),
-      home: const AuthGate(),
+      home: _handlingAction
+          ? EmailActionHandlerScreen(
+              mode: _actionMode!,
+              oobCode: _actionOobCode!,
+              onContinue: _clearActionAndContinue,
+            )
+          : const AuthGate(),
     );
   }
 }
@@ -103,7 +147,7 @@ class AuthGate extends StatelessWidget {
     );
 
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+      stream: FirebaseAuth.instance.idTokenChanges(),
       builder: (BuildContext context, AsyncSnapshot<User?> snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -351,6 +395,8 @@ class _AuthScreenState extends State<AuthScreen> {
   );
   bool _isLoginMode = true;
   bool _isSubmitting = false;
+  bool _captchaVerified = false;
+  final GlobalKey<RecaptchaWidgetState> _recaptchaKey = GlobalKey<RecaptchaWidgetState>();
 
   @override
   void dispose() {
@@ -368,6 +414,13 @@ class _AuthScreenState extends State<AuthScreen> {
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in email and password.')),
+      );
+      return;
+    }
+
+    if (kIsWeb && !_captchaVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please complete the CAPTCHA verification.')),
       );
       return;
     }
@@ -418,7 +471,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
       // Send verification email on signup
       if (!_isLoginMode && !user.emailVerified) {
-        await user.sendEmailVerification();
+        await user.sendEmailVerification(
+          ActionCodeSettings(
+            url: Uri.base.origin,
+            handleCodeInApp: true,
+          ),
+        );
       }
 
       await _firestore.collection('users').doc(user.uid).set({
@@ -449,6 +507,10 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!mounted) {
         return;
       }
+
+      // Reset CAPTCHA on failed auth attempt
+      _recaptchaKey.currentState?.reset();
+      setState(() => _captchaVerified = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to submit: $error')),
@@ -531,11 +593,25 @@ class _AuthScreenState extends State<AuthScreen> {
                                 ),
                               ),
                             ],
+                            if (kIsWeb) ...<Widget>[
+                              const SizedBox(height: 16),
+                              Center(
+                                child: RecaptchaWidget(
+                                  key: _recaptchaKey,
+                                  onVerified: (token) {
+                                    setState(() => _captchaVerified = true);
+                                  },
+                                  onExpired: () {
+                                    setState(() => _captchaVerified = false);
+                                  },
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 16),
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
-                                onPressed: _isSubmitting ? null : _submitAuth,
+                                onPressed: (_isSubmitting || (kIsWeb && !_captchaVerified)) ? null : _submitAuth,
                                 child: Text(
                                   _isSubmitting
                                       ? 'Submitting...'
@@ -548,8 +624,10 @@ class _AuthScreenState extends State<AuthScreen> {
                               onPressed: _isSubmitting
                                   ? null
                                   : () {
+                                      _recaptchaKey.currentState?.reset();
                                       setState(() {
                                         _isLoginMode = !_isLoginMode;
+                                        _captchaVerified = false;
                                       });
                                     },
                               child: Text(
