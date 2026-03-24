@@ -200,16 +200,15 @@ class AuthGate extends StatelessWidget {
                 return EmailVerificationScreen(user: user);
               }
 
-              // Check ToS acceptance (skip for admin/moderator)
-              final String? tosVersion = userData?['tosVersion'] as String?;
-              if (userRole == 'blogger' && tosVersion != currentTosVersion) {
-                return TosAcceptanceScreen(user: user);
-              }
-
               // Check profile completion (skip for admin/moderator)
               final bool profileSetupCompleted = _isProfileComplete(userData);
 
+              // New users (profile not yet completed) must accept ToS then set up profile
               if (userRole == 'blogger' && !profileSetupCompleted) {
+                final String? tosVersion = userData?['tosVersion'] as String?;
+                if (tosVersion != currentTosVersion) {
+                  return TosAcceptanceScreen(user: user);
+                }
                 return CompleteProfileScreen(user: user);
               }
 
