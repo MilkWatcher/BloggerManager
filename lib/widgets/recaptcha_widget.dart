@@ -8,7 +8,7 @@ import 'dart:js_interop';
 import 'dart:ui_web' as ui_web;
 import 'package:web/web.dart' as web;
 
-const String _recaptchaSiteKey = '6LcFg5UsAAAAAG8HnwVWHpKWTWHQGuSQpSbFuTaH';
+const String _recaptchaSiteKey = '6Ld2ipUsAAAAAMxSFL3ajqh35m1g3pSyl9Qc8J7R';
 
 @JS('grecaptcha.render')
 external JSNumber _grecaptchaRender(JSString elementId, JSObject params);
