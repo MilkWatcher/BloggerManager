@@ -44,7 +44,10 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1000),
+        child: Column(
       children: [
         TabBar(
           controller: _tabController,
@@ -80,6 +83,8 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
           ),
         ),
       ],
+    ),
+      ),
     );
   }
 }
@@ -377,7 +382,7 @@ class _UserManagementTabState extends State<_UserManagementTab> {
         ),
         Expanded(
           child: _filtered.isEmpty
-              ? const Center(child: Text('No bloggers found.'))
+              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.people_outline, size: 48, color: Colors.grey.shade400), const SizedBox(height: 8), const Text('No bloggers found.')]))
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView.builder(
@@ -813,7 +818,7 @@ class _ContentModerationTabState extends State<_ContentModerationTab> {
         ),
         Expanded(
           child: _filtered.isEmpty
-              ? const Center(child: Text('No blog posts found.'))
+              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.article_outlined, size: 48, color: Colors.grey.shade400), const SizedBox(height: 8), const Text('No blog posts found.')]))
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView.builder(
@@ -1167,7 +1172,7 @@ class _ReportsTabState extends State<_ReportsTab> {
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _reports.isEmpty
-                  ? const Center(child: Text('No reports found.'))
+                  ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.flag_outlined, size: 48, color: Colors.grey.shade400), const SizedBox(height: 8), const Text('No reports found.')]))
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       itemCount: _reports.length,
@@ -1560,7 +1565,7 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
         ),
         Expanded(
           child: filtered.isEmpty
-              ? const Center(child: Text('No moderation logs found.'))
+              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.history, size: 48, color: Colors.grey.shade400), const SizedBox(height: 8), const Text('No moderation logs found.')]))
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   itemCount: filtered.length,
@@ -1677,7 +1682,7 @@ class _RoleManagementTabState extends State<_RoleManagementTab> {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
 
     if (_users.isEmpty) {
-      return const Center(child: Text('No users found.'));
+      return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.people_outline, size: 48, color: Colors.grey.shade400), const SizedBox(height: 8), const Text('No users found.')]));
     }
 
     return RefreshIndicator(

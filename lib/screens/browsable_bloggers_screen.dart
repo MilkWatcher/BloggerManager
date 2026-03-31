@@ -580,8 +580,8 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
                   _applyClientFilters(docs);
 
               if (filteredDocs.isEmpty) {
-                return const Center(
-                  child: Text('No bloggers found for your current filters.'),
+                return Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.person_search, size: 48, color: Colors.grey.shade400), const SizedBox(height: 8), const Text('No bloggers found for your current filters.')]),
                 );
               }
 
@@ -606,7 +606,7 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
           return Column(
             children: [
               SizedBox(
-                height: 320,
+                height: 260,
                 child: _buildFilters(compact: true),
               ),
               Expanded(child: gridPane(constraints.maxWidth)),

@@ -36,6 +36,80 @@ class BloggerDetailScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildDetailSection(BuildContext context, String locationText, String email, String xUrl, String instagramUrl, String facebookUrl, List<String> tags, String displayName) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Location', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Text(locationText.isEmpty ? 'Location unavailable' : locationText),
+        const SizedBox(height: 10),
+        const Text('Contact', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            if (email.isNotEmpty)
+              OutlinedButton.icon(
+                onPressed: () => _openEmail(context, email),
+                icon: const Icon(Icons.email_outlined),
+                label: const Text('Email'),
+              ),
+            if (xUrl.isNotEmpty)
+              OutlinedButton.icon(
+                onPressed: () => _openExternalLink(context, xUrl),
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('X'),
+              ),
+            if (instagramUrl.isNotEmpty)
+              OutlinedButton.icon(
+                onPressed: () => _openExternalLink(context, instagramUrl),
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('Instagram'),
+              ),
+            if (facebookUrl.isNotEmpty)
+              OutlinedButton.icon(
+                onPressed: () => _openExternalLink(context, facebookUrl),
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('Facebook'),
+              ),
+          ],
+        ),
+        if (email.isEmpty && xUrl.isEmpty && instagramUrl.isEmpty && facebookUrl.isEmpty)
+          const Text('No contact methods shared yet.'),
+        const SizedBox(height: 10),
+        const Text('Tags', style: TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
+        if (tags.isEmpty)
+          const Text('No tags yet')
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: tags.map((String tag) => Chip(label: Text(tag))).toList(),
+          ),
+        if (bloggerId != FirebaseAuth.instance.currentUser?.uid) ...[
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () => _showReportDialog(
+              context,
+              targetType: 'blogger',
+              targetId: bloggerId,
+              targetName: displayName,
+            ),
+            icon: const Icon(Icons.flag_outlined, size: 18),
+            label: const Text('Report Blogger'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red.shade700,
+              side: BorderSide(color: Colors.red.shade200),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   Future<void> _openExternalLink(BuildContext context, String url) async {
     final Uri? uri = Uri.tryParse(url);
     if (uri == null) {
@@ -298,8 +372,8 @@ class BloggerDetailScreen extends StatelessWidget {
                   Expanded(child: Text('Report ${targetType == 'blog' ? 'Blog' : 'Blogger'}')),
                 ],
               ),
-              content: SizedBox(
-                width: 400,
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -437,13 +511,33 @@ class BloggerDetailScreen extends StatelessWidget {
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: Column(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final bool isNarrow = constraints.maxWidth < 500;
+                return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(12),
-                    child: Row(
+                    child: isNarrow
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              _buildProfileImage(data),
+                              const SizedBox(height: 10),
+                              Text(
+                                displayName,
+                                style: Theme.of(context).textTheme.titleMedium,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 14),
+                              _buildDetailSection(context, locationText, email, xUrl, instagramUrl, facebookUrl, tags, displayName),
+                            ],
+                          )
+                        : Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
@@ -465,98 +559,7 @@ class BloggerDetailScreen extends StatelessWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           flex: 7,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Location',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                locationText.isEmpty
-                                    ? 'Location unavailable'
-                                    : locationText,
-                              ),
-                              const SizedBox(height: 10),
-                              const Text(
-                                'Contact',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 6),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  if (email.isNotEmpty)
-                                    OutlinedButton.icon(
-                                      onPressed: () => _openEmail(context, email),
-                                      icon: const Icon(Icons.email_outlined),
-                                      label: const Text('Email'),
-                                    ),
-                                  if (xUrl.isNotEmpty)
-                                    OutlinedButton.icon(
-                                      onPressed: () => _openExternalLink(context, xUrl),
-                                      icon: const Icon(Icons.open_in_new),
-                                      label: const Text('X'),
-                                    ),
-                                  if (instagramUrl.isNotEmpty)
-                                    OutlinedButton.icon(
-                                      onPressed: () =>
-                                          _openExternalLink(context, instagramUrl),
-                                      icon: const Icon(Icons.open_in_new),
-                                      label: const Text('Instagram'),
-                                    ),
-                                  if (facebookUrl.isNotEmpty)
-                                    OutlinedButton.icon(
-                                      onPressed: () =>
-                                          _openExternalLink(context, facebookUrl),
-                                      icon: const Icon(Icons.open_in_new),
-                                      label: const Text('Facebook'),
-                                    ),
-                                ],
-                              ),
-                              if (email.isEmpty &&
-                                  xUrl.isEmpty &&
-                                  instagramUrl.isEmpty &&
-                                  facebookUrl.isEmpty) ...[
-                                const Text('No contact methods shared yet.'),
-                              ],
-                              const SizedBox(height: 10),
-                              const Text(
-                                'Tags',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 6),
-                              if (tags.isEmpty)
-                                const Text('No tags yet')
-                              else
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: tags
-                                      .map((String tag) => Chip(label: Text(tag)))
-                                      .toList(),
-                                ),
-                              if (bloggerId != FirebaseAuth.instance.currentUser?.uid) ...[
-                                const SizedBox(height: 12),
-                                OutlinedButton.icon(
-                                  onPressed: () => _showReportDialog(
-                                    context,
-                                    targetType: 'blogger',
-                                    targetId: bloggerId,
-                                    targetName: displayName,
-                                  ),
-                                  icon: const Icon(Icons.flag_outlined, size: 18),
-                                  label: const Text('Report Blogger'),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.red.shade700,
-                                    side: BorderSide(color: Colors.red.shade200),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
+                          child: _buildDetailSection(context, locationText, email, xUrl, instagramUrl, facebookUrl, tags, displayName),
                         ),
                       ],
                     ),
@@ -603,6 +606,8 @@ class BloggerDetailScreen extends StatelessWidget {
                   ),
                 ),
               ],
+            );
+              },
             ),
           );
         },
@@ -613,7 +618,12 @@ class BloggerDetailScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Blogger Profile'),
         ),
-        body: content,
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: content,
+          ),
+        ),
       );
     }
 

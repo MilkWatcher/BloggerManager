@@ -380,8 +380,8 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
                   Expanded(child: Text('Report ${targetType == 'blog' ? 'Blog' : 'Blogger'}')),
                 ],
               ),
-              content: SizedBox(
-                width: 400,
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -820,7 +820,7 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
             _applyClientFilters(docs);
 
         if (filtered.isEmpty) {
-          return const Center(child: Text('No blogs found for this area.'));
+          return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.search_off, size: 48, color: Colors.grey.shade400), const SizedBox(height: 8), const Text('No blogs found for this area.')]));
         }
 
         return ListView.builder(
@@ -986,9 +986,12 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
               if (constraints.maxWidth < 900) {
                 return Column(
                   children: [
-                    Expanded(flex: 3, child: _buildFiltersPanel(userPoint)),
+                    SizedBox(
+                      height: 280,
+                      child: _buildFiltersPanel(userPoint),
+                    ),
                     const Divider(height: 1),
-                    Expanded(flex: 7, child: _buildBlogListPane()),
+                    Expanded(child: _buildBlogListPane()),
                   ],
                 );
               }

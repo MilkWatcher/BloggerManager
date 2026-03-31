@@ -103,6 +103,31 @@ class _MyAppState extends State<MyApp> {
           elevation: 1.5,
           surfaceTintColor: Colors.white,
         ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+        chipTheme: ChipThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
       ),
       home: _handlingAction
           ? EmailActionHandlerScreen(
@@ -1287,11 +1312,12 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
 
         return LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
+            final bool isNarrow = constraints.maxWidth < 600;
             return Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1140),
+                constraints: const BoxConstraints(maxWidth: 900),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: EdgeInsets.symmetric(horizontal: isNarrow ? 12 : 20, vertical: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
