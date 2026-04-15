@@ -61,6 +61,11 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
   GeoSearchMode _geoSearchMode = GeoSearchMode.km10;
   GeoPoint? _currentUserLocation;
   bool _isUpdatingLocation = false;
+  bool _mobileFiltersExpanded = false;
+  bool _sortDescending = true;
+
+  // uid → displayName map for blogger-name search
+  Map<String, String> _bloggerNameMap = {};
 
   static const Map<String, String> _countryCodeByName = <String, String>{
     'ireland': 'IE',
@@ -139,6 +144,27 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
   void initState() {
     super.initState();
     _currentUserLocation = widget.userLocation;
+    _loadBloggerNames();
+  }
+
+  Future<void> _loadBloggerNames() async {
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .where('verificationStatus', isEqualTo: 'Approved')
+          .get();
+      final map = <String, String>{};
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final name = (data['displayName'] as String? ?? '').trim();
+        if (name.isNotEmpty) {
+          map[doc.id] = name;
+        }
+      }
+      if (mounted) {
+        setState(() => _bloggerNameMap = map);
+      }
+    } catch (_) {}
   }
 
   @override
@@ -159,7 +185,7 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
   Query<Map<String, dynamic>> _buildBaseQuery() {
     Query<Map<String, dynamic>> query = _firestore
         .collection('blogs')
-        .orderBy('uploadedAt', descending: true);
+        .orderBy('uploadedAt', descending: _sortDescending);
 
     if (_selectedTags.isNotEmpty) {
       query = query.where('tags', arrayContainsAny: _selectedTags);
@@ -281,13 +307,17 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
       final String city = (data['city'] as String? ?? '').toLowerCase();
       final String county = (data['county'] as String? ?? '').toLowerCase();
       final String country = (data['country'] as String? ?? '').toLowerCase();
+      final String uploadedBy = data['uploadedBy'] as String? ?? '';
+      final String bloggerName =
+          (_bloggerNameMap[uploadedBy] ?? '').toLowerCase();
 
       return title.contains(searchText) ||
           description.contains(searchText) ||
           domainLink.contains(searchText) ||
           city.contains(searchText) ||
           county.contains(searchText) ||
-          country.contains(searchText);
+          country.contains(searchText) ||
+          bloggerName.contains(searchText);
     }).toList();
   }
 
@@ -687,7 +717,35 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
               label: Text(_isUpdatingLocation ? 'Updating...' : 'Update Location'),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Sort', style: TextStyle(fontWeight: FontWeight.bold)),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: true,
+                    label: Text('Newest'),
+                    icon: Icon(Icons.arrow_downward, size: 14),
+                  ),
+                  ButtonSegment(
+                    value: false,
+                    label: Text('Oldest'),
+                    icon: Icon(Icons.arrow_upward, size: 14),
+                  ),
+                ],
+                selected: {_sortDescending},
+                onSelectionChanged: (Set<bool> selected) {
+                  setState(() => _sortDescending = selected.first);
+                },
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           const Text(
             'Search',
             style: TextStyle(fontWeight: FontWeight.bold),
@@ -696,7 +754,7 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
           TextField(
             controller: _searchController,
             decoration: const InputDecoration(
-              hintText: 'Search title, description, location...',
+              hintText: 'Search by title, blogger name, location…',
               prefixIcon: Icon(Icons.search),
               border: OutlineInputBorder(),
             ),
@@ -986,9 +1044,31 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
               if (constraints.maxWidth < 900) {
                 return Column(
                   children: [
-                    SizedBox(
-                      height: 280,
-                      child: _buildFiltersPanel(userPoint),
+                    Material(
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      child: InkWell(
+                        onTap: () => setState(() => _mobileFiltersExpanded = !_mobileFiltersExpanded),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.search, size: 20),
+                              const SizedBox(width: 8),
+                              const Text('Blog Search', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                              const Spacer(),
+                              Icon(_mobileFiltersExpanded ? Icons.expand_less : Icons.expand_more),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    AnimatedCrossFade(
+                      firstChild: const SizedBox(width: double.infinity, height: 0),
+                      secondChild: _buildFiltersPanel(userPoint),
+                      crossFadeState: _mobileFiltersExpanded
+                          ? CrossFadeState.showSecond
+                          : CrossFadeState.showFirst,
+                      duration: const Duration(milliseconds: 250),
                     ),
                     const Divider(height: 1),
                     Expanded(child: _buildBlogListPane()),

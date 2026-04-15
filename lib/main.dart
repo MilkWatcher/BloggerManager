@@ -21,6 +21,7 @@ import 'screens/force_password_change_screen.dart';
 import 'screens/email_verification_screen.dart';
 import 'screens/tos_acceptance_screen.dart';
 import 'screens/email_action_handler_screen.dart';
+import 'screens/welcome_screen.dart';
 import 'widgets/recaptcha_widget.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
@@ -190,7 +191,16 @@ class AuthGate extends StatelessWidget {
             ) {
               if (userSnapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
+                  body: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Loading your profile…'),
+                      ],
+                    ),
+                  ),
                 );
               }
 
@@ -242,8 +252,42 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        return const AuthScreen();
+        return const _UnauthenticatedFlow();
       },
+    );
+  }
+}
+
+/// Manages Welcome → AuthScreen transition when no user is signed in.
+class _UnauthenticatedFlow extends StatefulWidget {
+  const _UnauthenticatedFlow();
+
+  @override
+  State<_UnauthenticatedFlow> createState() => _UnauthenticatedFlowState();
+}
+
+class _UnauthenticatedFlowState extends State<_UnauthenticatedFlow> {
+  bool _showWelcome = true;
+  bool _signUpMode = false;
+
+  void _goToAuth({required bool signUp}) {
+    setState(() {
+      _signUpMode = signUp;
+      _showWelcome = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_showWelcome) {
+      return WelcomeScreen(
+        onGetStarted: () => _goToAuth(signUp: true),
+        onLogin: () => _goToAuth(signUp: false),
+      );
+    }
+    return AuthScreen(
+      initialSignUp: _signUpMode,
+      onBack: () => setState(() => _showWelcome = true),
     );
   }
 }
@@ -402,7 +446,9 @@ class _BannedScreen extends StatelessWidget {
 }
 
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
+  final bool initialSignUp;
+  final VoidCallback? onBack;
+  const AuthScreen({this.initialSignUp = false, this.onBack, super.key});
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -418,9 +464,17 @@ class _AuthScreenState extends State<AuthScreen> {
     app: Firebase.app(),
     databaseId: 'default',
   );
-  bool _isLoginMode = true;
+  late bool _isLoginMode;
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isLoginMode = !widget.initialSignUp;
+  }
   bool _captchaVerified = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   final GlobalKey<RecaptchaWidgetState> _recaptchaKey = GlobalKey<RecaptchaWidgetState>();
 
   @override
@@ -551,12 +605,15 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(
-        title: _buildLogoTitle(
-          _isLoginMode ? 'Login to Blogger Manager' : 'Join Blogger Manager',
-        ),
-      ),
+      appBar: widget.onBack != null
+          ? AppBar(
+              leading: BackButton(onPressed: widget.onBack),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+            )
+          : null,
       body: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           return SingleChildScrollView(
@@ -564,106 +621,181 @@ class _AuthScreenState extends State<AuthScreen> {
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Center(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 480),
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: <Widget>[
-                            Text(
-                              _isLoginMode ? 'Welcome back' : 'Create your account',
-                              textAlign: TextAlign.left,
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              _isLoginMode
-                                  ? 'Sign in to continue to Blogger Manager.'
-                                  : 'Sign up to get started with Blogger Manager.',
-                              textAlign: TextAlign.left,
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: _emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              textAlign: TextAlign.left,
-                              decoration: const InputDecoration(
-                                labelText: 'Email',
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: _passwordController,
-                              obscureText: true,
-                              textAlign: TextAlign.left,
-                              decoration: const InputDecoration(
-                                labelText: 'Password',
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                            if (!_isLoginMode) ...<Widget>[
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller: _confirmPasswordController,
-                                obscureText: true,
-                                textAlign: TextAlign.left,
-                                decoration: const InputDecoration(
-                                  labelText: 'Confirm Password',
-                                  border: OutlineInputBorder(),
-                                ),
-                              ),
-                            ],
-                            if (kIsWeb) ...<Widget>[
-                              const SizedBox(height: 16),
-                              Center(
-                                child: RecaptchaWidget(
-                                  key: _recaptchaKey,
-                                  onVerified: (token) {
-                                    setState(() => _captchaVerified = true);
-                                  },
-                                  onExpired: () {
-                                    setState(() => _captchaVerified = false);
-                                  },
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 16),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: (_isSubmitting || (kIsWeb && !_captchaVerified)) ? null : _submitAuth,
-                                child: Text(
-                                  _isSubmitting
-                                      ? 'Submitting...'
-                                      : (_isLoginMode ? 'Login' : 'Sign Up'),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextButton(
-                              onPressed: _isSubmitting
-                                  ? null
-                                  : () {
-                                      _recaptchaKey.currentState?.reset();
-                                      setState(() {
-                                        _isLoginMode = !_isLoginMode;
-                                        _captchaVerified = false;
-                                      });
-                                    },
-                              child: Text(
-                                _isLoginMode
-                                    ? 'Need an account? Sign Up'
-                                    : 'Already have an account? Login',
-                              ),
-                            ),
-                          ],
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Logo + App name
+                        Image.asset(
+                          'lib/images/blogDB.png',
+                          height: 56,
                         ),
-                      ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Blogger Manager',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        // Main card
+                        Card(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 2,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: <Widget>[
+                                Text(
+                                  _isLoginMode ? 'Welcome back!' : 'Create your account',
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  _isLoginMode
+                                      ? 'Sign in to continue to your dashboard.'
+                                      : 'Sign up to get started with Blogger Manager.',
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                // Email field
+                                TextField(
+                                  controller: _emailController,
+                                  keyboardType: TextInputType.emailAddress,
+                                  decoration: InputDecoration(
+                                    labelText: 'Email',
+                                    prefixIcon: const Icon(Icons.email_outlined),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                // Password field
+                                TextField(
+                                  controller: _passwordController,
+                                  obscureText: _obscurePassword,
+                                  decoration: InputDecoration(
+                                    labelText: 'Password',
+                                    prefixIcon: const Icon(Icons.lock_outline),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                    ),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                ),
+                                // Confirm password (sign-up only)
+                                if (!_isLoginMode) ...<Widget>[
+                                  const SizedBox(height: 14),
+                                  TextField(
+                                    controller: _confirmPasswordController,
+                                    obscureText: _obscureConfirmPassword,
+                                    decoration: InputDecoration(
+                                      labelText: 'Confirm Password',
+                                      prefixIcon: const Icon(Icons.lock_outline),
+                                      suffixIcon: IconButton(
+                                        icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility),
+                                        onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                                      ),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ],
+                                // reCAPTCHA (web only)
+                                if (kIsWeb) ...<Widget>[
+                                  const SizedBox(height: 18),
+                                  Center(
+                                    child: RecaptchaWidget(
+                                      key: _recaptchaKey,
+                                      onVerified: (token) {
+                                        setState(() => _captchaVerified = true);
+                                      },
+                                      onExpired: () {
+                                        setState(() => _captchaVerified = false);
+                                      },
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 20),
+                                // Submit button
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 48,
+                                  child: ElevatedButton(
+                                    onPressed: (_isSubmitting || (kIsWeb && !_captchaVerified)) ? null : _submitAuth,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: colorScheme.primary,
+                                      foregroundColor: colorScheme.onPrimary,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                    ),
+                                    child: _isSubmitting
+                                        ? const SizedBox(
+                                            width: 22,
+                                            height: 22,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.5,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(_isLoginMode ? Icons.login : Icons.person_add, size: 20),
+                                              const SizedBox(width: 8),
+                                              Text(_isLoginMode ? 'Login' : 'Sign Up'),
+                                            ],
+                                          ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                // Toggle login/signup
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      _isLoginMode ? "Don't have an account?" : 'Already have an account?',
+                                      style: Theme.of(context).textTheme.bodyMedium,
+                                    ),
+                                    TextButton(
+                                      onPressed: _isSubmitting
+                                          ? null
+                                          : () {
+                                              _recaptchaKey.currentState?.reset();
+                                              setState(() {
+                                                _isLoginMode = !_isLoginMode;
+                                                _captchaVerified = false;
+                                                _obscurePassword = true;
+                                                _obscureConfirmPassword = true;
+                                              });
+                                            },
+                                      child: Text(
+                                        _isLoginMode ? 'Sign Up' : 'Login',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: colorScheme.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

@@ -21,6 +21,8 @@ class EmailService {
       final Map<String, dynamic> templateParams = {
         'to_email': toEmail,
         'to_name': toName,
+        'from_name': 'Blogger Manager',
+        'reply_to': 'noreply@bloggermanager.com',
         'reason': reason ?? 'No reason provided',
         'duration': _formatDuration(duration),
         'expiry_date': expiryDate.toLocal().toString().split('.').first,
@@ -42,6 +44,8 @@ class EmailService {
       final Map<String, dynamic> templateParams = {
         'to_email': toEmail,
         'to_name': toName,
+        'from_name': 'Blogger Manager',
+        'reply_to': 'noreply@bloggermanager.com',
         'reason': reason ?? 'No reason provided',
       };
 

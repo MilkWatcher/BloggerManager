@@ -243,7 +243,7 @@ class _BloggerCard extends StatelessWidget {
             builder: (ctx) => Dialog(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
-                child: BloggerDetailScreen(bloggerId: blogger.uid, asDialog: true),
+                child: BloggerDetailScreen(bloggerId: blogger.userId, asDialog: true),
               ),
             ),
           );

@@ -56,8 +56,9 @@ class RecaptchaWidgetState extends State<RecaptchaWidget> {
       (int viewId, {Object? params}) {
         final div = web.document.createElement('div') as web.HTMLDivElement;
         div.id = _viewId;
-        div.style.width = '304px';
+        div.style.width = '100%';
         div.style.height = '78px';
+        div.style.overflow = 'hidden';
         return div;
       },
     );
@@ -124,10 +125,31 @@ class RecaptchaWidgetState extends State<RecaptchaWidget> {
       return const SizedBox.shrink();
     }
 
-    return SizedBox(
-      width: 304,
-      height: 78,
-      child: HtmlElementView(viewType: _viewId),
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double availableWidth = constraints.maxWidth;
+        if (availableWidth < 304) {
+          final double scale = availableWidth / 304;
+          return SizedBox(
+            width: availableWidth,
+            height: 78 * scale,
+            child: Transform.scale(
+              scale: scale,
+              alignment: Alignment.topCenter,
+              child: SizedBox(
+                width: 304,
+                height: 78,
+                child: HtmlElementView(viewType: _viewId),
+              ),
+            ),
+          );
+        }
+        return SizedBox(
+          width: 304,
+          height: 78,
+          child: HtmlElementView(viewType: _viewId),
+        );
+      },
     );
   }
 }

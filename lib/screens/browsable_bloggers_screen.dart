@@ -63,6 +63,7 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
   BloggerGeoSearchMode _geoSearchMode = BloggerGeoSearchMode.all;
   GeoPoint? _currentUserLocation;
   bool _isUpdatingLocation = false;
+  bool _mobileFiltersExpanded = false;
 
   @override
   void initState() {
@@ -605,9 +606,31 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
         if (!isDesktop) {
           return Column(
             children: [
-              SizedBox(
-                height: 260,
-                child: _buildFilters(compact: true),
+              Material(
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                child: InkWell(
+                  onTap: () => setState(() => _mobileFiltersExpanded = !_mobileFiltersExpanded),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.search, size: 20),
+                        const SizedBox(width: 8),
+                        const Text('Blogger Search', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        const Spacer(),
+                        Icon(_mobileFiltersExpanded ? Icons.expand_less : Icons.expand_more),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              AnimatedCrossFade(
+                firstChild: const SizedBox(width: double.infinity, height: 0),
+                secondChild: _buildFilters(compact: true),
+                crossFadeState: _mobileFiltersExpanded
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
+                duration: const Duration(milliseconds: 250),
               ),
               Expanded(child: gridPane(constraints.maxWidth)),
             ],

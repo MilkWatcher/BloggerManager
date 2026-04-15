@@ -8,6 +8,7 @@ import '../models/blogger_user.dart';
 import '../models/moderation_log.dart';
 import '../models/report.dart';
 import '../services/blogger_service.dart';
+import '../screens/admin_stats_screen.dart';
 import 'blogger_detail_screen.dart';
 
 class ModerationDashboardScreen extends StatefulWidget {
@@ -31,7 +32,7 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: _isAdmin ? 5 : 4,
+      length: _isAdmin ? 6 : 4,
       vsync: this,
     );
   }
@@ -58,6 +59,7 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
             const Tab(text: 'Reports'),
             const Tab(text: 'Moderation Logs'),
             if (_isAdmin) const Tab(text: 'Role Management'),
+            if (_isAdmin) const Tab(text: 'Statistics'),
           ],
         ),
         Expanded(
@@ -79,6 +81,8 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
               _ModerationLogsTab(bloggerService: _bloggerService),
               if (_isAdmin)
                 _RoleManagementTab(bloggerService: _bloggerService),
+              if (_isAdmin)
+                const AdminStatsScreen(),
             ],
           ),
         ),

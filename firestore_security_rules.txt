@@ -22,20 +22,21 @@ service cloud.firestore {
     match /users/{userId} {
       // Allow anyone to read public blogger profiles
       allow read: if isAuthenticated();
-      
+
       // Allow users to create their own profile on signup
       allow create: if isAuthenticated() && 
-                       isUserOwner(userId) && 
-                       isValidBloggerData() &&
-                       request.resource.data.verificationStatus == 'Approved';
-      
+               isUserOwner(userId) && 
+               isValidBloggerData() &&
+               request.resource.data.verificationStatus == 'Approved';
+
       // Allow users to update only their own profile
       allow update: if isAuthenticated() && 
-                       isUserOwner(userId) && 
-                       isValidBloggerData();
-      
-      // Prevent deletion of profiles (soft delete only via custom claim or admin)
-      allow delete: if false;
+                  isUserOwner(userId) && 
+                  isValidBloggerData()
+                || (isAuthenticated() && (request.auth.token.role == 'admin' || request.auth.token.role == 'moderator'));
+
+      // Allow admins or moderators to delete (soft delete) any user profile
+      allow delete: if isAuthenticated() && (request.auth.token.role == 'admin' || request.auth.token.role == 'moderator');
     }
 
     // Blogs Collection
