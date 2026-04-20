@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import '../services/blogger_service.dart';
+import '../widgets/tag_chip.dart';
 
 enum GeoSearchMode {
   km5,
@@ -835,8 +836,8 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
             runSpacing: 8,
             children: _availableTags.map((String tag) {
               final bool isSelected = _selectedTags.contains(tag);
-              return FilterChip(
-                label: Text(tag),
+              return TagFilterChip(
+                tag: tag,
                 selected: isSelected,
                 onSelected: (bool selected) {
                   setState(() {
@@ -975,7 +976,7 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
                               runSpacing: 6,
                               children: tags
                                   .take(5)
-                                  .map((String tag) => Chip(label: Text(tag)))
+                                  .map((String tag) => TagChip(tag: tag, small: true))
                                   .toList(),
                             ),
                           ],

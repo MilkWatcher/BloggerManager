@@ -176,9 +176,7 @@ class AuthGate extends StatelessWidget {
       stream: FirebaseAuth.instance.idTokenChanges(),
       builder: (BuildContext context, AsyncSnapshot<User?> snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const _SplashScreen();
         }
 
         final User? user = snapshot.data;
@@ -190,18 +188,7 @@ class AuthGate extends StatelessWidget {
               AsyncSnapshot<DocumentSnapshot<Map<String, dynamic>>> userSnapshot,
             ) {
               if (userSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Loading your profile…'),
-                      ],
-                    ),
-                  ),
-                );
+                return const _SplashScreen(message: 'Loading your profile…');
               }
 
               final Map<String, dynamic>? userData = userSnapshot.data?.data();
@@ -254,6 +241,54 @@ class AuthGate extends StatelessWidget {
 
         return const _UnauthenticatedFlow();
       },
+    );
+  }
+}
+
+/// Branded splash / loading screen shown during auth and profile loading.
+class _SplashScreen extends StatelessWidget {
+  final String? message;
+  const _SplashScreen({this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('lib/images/blogDB.png', height: 72),
+            const SizedBox(height: 20),
+            Text(
+              'Blogger Manager',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.primary,
+                  ),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: colorScheme.primary,
+              ),
+            ),
+            if (message != null) ...[  
+              const SizedBox(height: 16),
+              Text(
+                message!,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey.shade600,
+                    ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

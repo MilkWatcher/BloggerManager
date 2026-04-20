@@ -44,7 +44,7 @@ service cloud.firestore {
         allow read: if isAuthenticated() && request.auth.uid == userId;
         allow create: if isAdminOrModerator();
         allow update: if isAuthenticated() && request.auth.uid == userId;
-        allow delete: if false;
+        allow delete: if isAdminOrModerator();
       }
     }
 

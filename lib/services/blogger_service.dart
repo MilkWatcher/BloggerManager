@@ -278,7 +278,38 @@ class BloggerService {
     }
   }
 
-  /// Warn a blogger
+  /// Unban a blogger (moderator action)
+  Future<void> unbanBlogger({
+    required String userId,
+    required String moderatorId,
+    String? reason,
+  }) async {
+    await _validateModerationTarget(userId);
+
+    final blogger = await getBlogger(userId);
+
+    await _firestore.collection(_usersCollection).doc(userId).set({
+      'status': 'active',
+      'banExpiry': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await _firestore.collection(_moderationLogsCollection).add({
+      'userId': userId,
+      'moderatorId': moderatorId,
+      'actionType': 'unban',
+      'reason': reason ?? 'Ban lifted',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    if (blogger != null) {
+      await _emailService.sendUnbanNotification(
+        toEmail: blogger.email,
+        toName: blogger.displayName,
+        reason: reason,
+      );
+    }
+  }
   Future<void> warnBlogger({
     required String userId,
     required String moderatorId,
@@ -359,15 +390,17 @@ class BloggerService {
       await doc.reference.delete();
     }
 
-    // Delete all notifications for this user
-    final notifSnapshot = await _firestore
-        .collection(_usersCollection)
-        .doc(userId)
-        .collection('notifications')
-        .get();
-    for (final doc in notifSnapshot.docs) {
-      await doc.reference.delete();
-    }
+    // Delete all notifications for this user (best-effort)
+    try {
+      final notifSnapshot = await _firestore
+          .collection(_usersCollection)
+          .doc(userId)
+          .collection('notifications')
+          .get();
+      for (final doc in notifSnapshot.docs) {
+        await doc.reference.delete();
+      }
+    } catch (_) {}
 
     // Delete the user document
     await _firestore.collection(_usersCollection).doc(userId).delete();

@@ -56,6 +56,28 @@ class EmailService {
     }
   }
 
+  Future<void> sendUnbanNotification({
+    required String toEmail,
+    required String toName,
+    String? reason,
+  }) async {
+    try {
+      final Map<String, dynamic> templateParams = {
+        'to_email': toEmail,
+        'to_name': toName,
+        'from_name': 'Blogger Manager',
+        'reply_to': 'noreply@bloggermanager.com',
+        'reason': reason ?? 'Your ban has been lifted. You may now log in again.',
+        'duration': 'N/A',
+        'expiry_date': 'N/A',
+      };
+      await _sendEmail(_banTemplateId, templateParams);
+      developer.log('Unban notification sent to $toEmail', name: 'EmailService');
+    } catch (e) {
+      developer.log('Failed to send unban notification: $e', error: e, name: 'EmailService');
+    }
+  }
+
   Future<void> _sendEmail(String templateId, Map<String, dynamic> templateParams) async {
     final response = await http.post(
       Uri.parse(_emailJsUrl),

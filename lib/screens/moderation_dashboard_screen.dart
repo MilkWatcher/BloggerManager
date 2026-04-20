@@ -9,6 +9,7 @@ import '../models/moderation_log.dart';
 import '../models/report.dart';
 import '../services/blogger_service.dart';
 import '../screens/admin_stats_screen.dart';
+import '../widgets/tag_chip.dart';
 import 'blogger_detail_screen.dart';
 
 class ModerationDashboardScreen extends StatefulWidget {
@@ -53,6 +54,9 @@ class _ModerationDashboardScreenState extends State<ModerationDashboardScreen>
         TabBar(
           controller: _tabController,
           isScrollable: true,
+          labelColor: Theme.of(context).colorScheme.primary,
+          unselectedLabelColor: Colors.grey.shade600,
+          indicatorColor: Theme.of(context).colorScheme.primary,
           tabs: [
             const Tab(text: 'User Management'),
             const Tab(text: 'Content Moderation'),
@@ -246,6 +250,74 @@ class _UserManagementTabState extends State<_UserManagementTab> {
         }
       }
     }
+  }
+
+  Future<void> _showUnbanDialog(BloggerUser blogger) async {
+    final reasonController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.lock_open, color: Colors.green),
+            const SizedBox(width: 8),
+            Text('Unban ${blogger.displayName}'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Remove the ban from ${blogger.displayName}? Their account will be restored immediately.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Reason (optional)',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green, foregroundColor: Colors.white),
+            child: const Text('Unban'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await widget.bloggerService.unbanBlogger(
+          userId: blogger.userId,
+          moderatorId: widget.currentUserId,
+          reason: reasonController.text.trim().isNotEmpty
+              ? reasonController.text.trim()
+              : null,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('${blogger.displayName} has been unbanned.')));
+          _load();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      }
+    }
+    reasonController.dispose();
   }
 
   Future<void> _showWarnDialog(BloggerUser blogger) async {
@@ -480,6 +552,16 @@ class _UserManagementTabState extends State<_UserManagementTab> {
                                 spacing: 8,
                                 runSpacing: 8,
                                 children: [
+                                  if (isBanned)
+                                    OutlinedButton.icon(
+                                      onPressed: () =>
+                                          _showUnbanDialog(blogger),
+                                      icon: const Icon(Icons.lock_open,
+                                          size: 16),
+                                      label: const Text('Unban'),
+                                      style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.green),
+                                    ),
                                   if (!isBanned)
                                     OutlinedButton.icon(
                                       onPressed: () =>
@@ -625,9 +707,7 @@ void _showBlogPreviewDialog(BuildContext context, Map<String, dynamic> blog) {
                   spacing: 4,
                   runSpacing: 4,
                   children: tags
-                      .map((t) => Chip(
-                          label:
-                              Text(t, style: const TextStyle(fontSize: 11))))
+                      .map((t) => TagChip(tag: t, small: true))
                       .toList(),
                 ),
               ],
@@ -907,10 +987,7 @@ class _ContentModerationTabState extends State<_ContentModerationTab> {
                                         spacing: 4,
                                         runSpacing: 4,
                                         children: tags
-                                            .map((t) => Chip(
-                                                label: Text(t,
-                                                    style: const TextStyle(
-                                                        fontSize: 11))))
+                                            .map((t) => TagChip(tag: t, small: true))
                                             .toList(),
                                       ),
                                     ],
@@ -1139,35 +1216,76 @@ class _ReportsTabState extends State<_ReportsTab> {
     reasonController.dispose();
   }
 
+  Widget _reportFilterBtn(String status, IconData icon, Color color, String tooltip) {
+    final isSelected = _statusFilter == status;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: () {
+          setState(() => _statusFilter = status);
+          _loadReports();
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withValues(alpha: 0.15) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? color : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Icon(icon, color: isSelected ? color : Colors.grey.shade500, size: 20),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Filter: ', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(width: 8),
-              DropdownButton<String>(
-                value: _statusFilter,
-                items: const [
-                  DropdownMenuItem(value: '', child: Text('All')),
-                  DropdownMenuItem(value: 'pending', child: Text('Pending')),
-                  DropdownMenuItem(value: 'reviewed', child: Text('Reviewed')),
-                  DropdownMenuItem(value: 'resolved', child: Text('Resolved')),
-                  DropdownMenuItem(value: 'dismissed', child: Text('Dismissed')),
+              Row(
+                children: [
+                  Text(
+                    'Filter by status:',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade700,
+                        ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: _loadReports,
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'Refresh',
+                    iconSize: 20,
+                  ),
                 ],
-                onChanged: (value) {
-                  setState(() => _statusFilter = value ?? '');
-                  _loadReports();
-                },
               ),
-              const Spacer(),
-              IconButton(
-                onPressed: _loadReports,
-                icon: const Icon(Icons.refresh),
-                tooltip: 'Refresh',
+              const SizedBox(height: 6),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _reportFilterBtn('', Icons.list_alt, Colors.blueGrey, 'All reports'),
+                    const SizedBox(width: 4),
+                    _reportFilterBtn('pending', Icons.hourglass_empty, Colors.orange, 'Pending'),
+                    const SizedBox(width: 4),
+                    _reportFilterBtn('reviewed', Icons.visibility, Colors.blue, 'Reviewed'),
+                    const SizedBox(width: 4),
+                    _reportFilterBtn('resolved', Icons.check_circle_outline, Colors.green, 'Resolved'),
+                    const SizedBox(width: 4),
+                    _reportFilterBtn('dismissed', Icons.cancel_outlined, Colors.grey, 'Dismissed'),
+                  ],
+                ),
               ),
             ],
           ),
@@ -1448,6 +1566,8 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
     switch (action) {
       case 'ban':
         return 'Ban';
+      case 'unban':
+        return 'Unban';
       case 'warn':
         return 'Warning';
       case 'delete_post':
@@ -1471,6 +1591,8 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
     switch (action) {
       case 'ban':
         return Colors.red;
+      case 'unban':
+        return Colors.green;
       case 'warn':
         return Colors.orange;
       case 'delete_post':
@@ -1494,6 +1616,8 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
     switch (action) {
       case 'ban':
         return Icons.block;
+      case 'unban':
+        return Icons.lock_open;
       case 'warn':
         return Icons.warning_amber_rounded;
       case 'delete_post':
@@ -1513,6 +1637,30 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
     }
   }
 
+  Widget _filterBtn(String? action, IconData icon, Color color, String tooltip) {
+    final isSelected = _filterAction == action;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: () => setState(() => _filterAction = action),
+        borderRadius: BorderRadius.circular(8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withOpacity(0.15) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? color : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Icon(icon, color: isSelected ? color : Colors.grey.shade500, size: 20),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
@@ -1524,45 +1672,54 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Filter: '),
-              const SizedBox(width: 8),
-              DropdownButton<String?>(
-                value: _filterAction,
-                hint: const Text('All actions'),
-                items: const [
-                  DropdownMenuItem<String?>(
-                      value: null, child: Text('All actions')),
-                  DropdownMenuItem(value: 'ban', child: Text('Bans')),
-                  DropdownMenuItem(
-                      value: 'warn', child: Text('Warnings')),
-                  DropdownMenuItem(
-                      value: 'delete_post', child: Text('Deleted Posts')),
-                  DropdownMenuItem(
-                      value: 'delete_account',
-                      child: Text('Deleted Accounts')),
-                  DropdownMenuItem(
-                      value: 'automod_block',
-                      child: Text('Automod Blocks')),
-                  DropdownMenuItem(
-                      value: 'report_reviewed',
-                      child: Text('Reports Reviewed')),
-                  DropdownMenuItem(
-                      value: 'report_resolved',
-                      child: Text('Reports Resolved')),
-                  DropdownMenuItem(
-                      value: 'report_dismissed',
-                      child: Text('Reports Dismissed')),
+              Row(
+                children: [
+                  Text(
+                    'Filter by action:',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade700,
+                        ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: _load,
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'Refresh',
+                    iconSize: 20,
+                  ),
                 ],
-                onChanged: (value) => setState(() => _filterAction = value),
               ),
-              const Spacer(),
-              IconButton(
-                onPressed: _load,
-                icon: const Icon(Icons.refresh),
-                tooltip: 'Refresh',
+              const SizedBox(height: 6),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _filterBtn(null, Icons.list_alt, Colors.blueGrey, 'All actions'),
+                    const SizedBox(width: 4),
+                    _filterBtn('ban', Icons.block, Colors.red, 'Bans'),
+                    const SizedBox(width: 4),
+                    _filterBtn('unban', Icons.lock_open, Colors.green, 'Unbans'),
+                    const SizedBox(width: 4),
+                    _filterBtn('warn', Icons.warning_amber_rounded, Colors.orange, 'Warnings'),
+                    const SizedBox(width: 4),
+                    _filterBtn('delete_post', Icons.delete, Colors.deepOrange, 'Deleted Posts'),
+                    const SizedBox(width: 4),
+                    _filterBtn('delete_account', Icons.delete_forever, Colors.red.shade900, 'Deleted Accounts'),
+                    const SizedBox(width: 4),
+                    _filterBtn('automod_block', Icons.shield, Colors.purple, 'Automod Blocks'),
+                    const SizedBox(width: 4),
+                    _filterBtn('report_reviewed', Icons.visibility, Colors.blue, 'Reports Reviewed'),
+                    const SizedBox(width: 4),
+                    _filterBtn('report_resolved', Icons.check_circle_outline, Colors.teal, 'Reports Resolved'),
+                    const SizedBox(width: 4),
+                    _filterBtn('report_dismissed', Icons.cancel_outlined, Colors.grey, 'Reports Dismissed'),
+                  ],
+                ),
               ),
             ],
           ),
