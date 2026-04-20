@@ -89,7 +89,8 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
   Query<Map<String, dynamic>> _buildBaseQuery() {
     Query<Map<String, dynamic>> query = _firestore
         .collection('blogs')
-        .orderBy('uploadedAt', descending: true);
+        .orderBy('uploadedAt', descending: true)
+        .limit(200);
 
     if (_selectedTags.isNotEmpty) {
       query = query.where('tags', arrayContainsAny: _selectedTags);
@@ -410,62 +411,32 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
   ) {
     final String bloggerId = doc['bloggerId'] as String;
 
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: _firestore.collection('users').doc(bloggerId).snapshots(),
-      builder: (
-        BuildContext context,
-        AsyncSnapshot<DocumentSnapshot<Map<String, dynamic>>> snapshot,
-      ) {
-        final Map<String, dynamic> userData = snapshot.data?.data() ?? <String, dynamic>{};
+    final String displayName =
+        (doc['displayName'] as String? ?? '').trim().isNotEmpty
+            ? (doc['displayName'] as String).trim()
+            : 'Anonymous Blogger';
+    final String city = (doc['city'] as String? ?? '').trim();
+    final String county = (doc['county'] as String? ?? '').trim();
+    final GeoPoint? bloggerPoint = doc['location'] as GeoPoint?;
+    final List<String> tags =
+        List<String>.from(doc['tags'] as List<dynamic>? ?? <dynamic>[])
+            .where((String tag) => tag.trim().isNotEmpty)
+            .toList();
+    final String tagsSummary = tags.isEmpty ? 'No tags yet' : tags.join(', ');
 
-        final String displayName =
-            (userData['displayName'] as String? ?? '').trim().isNotEmpty
-                ? (userData['displayName'] as String).trim()
-                : ((doc['displayName'] as String? ?? '').trim().isNotEmpty
-                    ? (doc['displayName'] as String).trim()
-                    : 'Anonymous Blogger');
-        final String city =
-            (userData['city'] as String? ?? '').trim().isNotEmpty
-                ? (userData['city'] as String).trim()
-                : (doc['city'] as String? ?? '');
-        final String county =
-            (userData['county'] as String? ?? '').trim().isNotEmpty
-                ? (userData['county'] as String).trim()
-                : (doc['county'] as String? ?? '');
-        final GeoPoint? bloggerPoint =
-            userData['location'] as GeoPoint? ?? doc['location'] as GeoPoint?;
-        final List<String> tags =
-            List<String>.from(userData['tags'] as List<dynamic>? ?? <dynamic>[])
-                .where((String tag) => tag.trim().isNotEmpty)
-                .toList();
-        final List<String> fallbackTags =
-            List<String>.from(doc['tags'] as List<dynamic>? ?? <dynamic>[])
-                .where((String tag) => tag.trim().isNotEmpty)
-                .toList();
-        final String tagsSummary =
-            (tags.isNotEmpty ? tags : fallbackTags).isEmpty
-                ? 'No tags yet'
-                : (tags.isNotEmpty ? tags : fallbackTags).join(', ');
+    String? distanceText;
+    final GeoPoint? userPoint = _currentUserLocation;
+    if (userPoint != null && bloggerPoint != null && maxDistanceKm != null) {
+      final double distanceMeters = Geolocator.distanceBetween(
+        userPoint.latitude,
+        userPoint.longitude,
+        bloggerPoint.latitude,
+        bloggerPoint.longitude,
+      );
+      distanceText = '${(distanceMeters / 1000).toStringAsFixed(1)} km away';
+    }
 
-        String? distanceText;
-        final GeoPoint? userPoint = _currentUserLocation;
-        if (userPoint != null && bloggerPoint != null && maxDistanceKm != null) {
-          final double distanceMeters = Geolocator.distanceBetween(
-            userPoint.latitude,
-            userPoint.longitude,
-            bloggerPoint.latitude,
-            bloggerPoint.longitude,
-          );
-          distanceText = '${(distanceMeters / 1000).toStringAsFixed(1)} km away';
-        }
-
-        final Map<String, dynamic> imageSource = <String, dynamic>{
-          'profileImageBase64': (userData['profileImageBase64'] as String? ?? '').trim().isNotEmpty
-              ? userData['profileImageBase64']
-              : doc['profileImageBase64'],
-        };
-
-        return InkWell(
+    return InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () {
             showDialog<void>(
@@ -486,7 +457,7 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
                 children: [
                   Row(
                     children: [
-                      _buildProfileImage(imageSource),
+                      _buildProfileImage(doc),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -534,8 +505,6 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
             ),
           ),
         );
-      },
-    );
   }
 
   int _gridCountForWidth(double width) {

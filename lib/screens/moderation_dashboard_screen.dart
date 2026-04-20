@@ -1553,9 +1553,16 @@ class _ModerationLogsTabState extends State<_ModerationLogsTab> {
       ids.add(log.moderatorId);
     }
     ids.removeWhere((id) => _nameCache.containsKey(id));
-    for (final id in ids) {
-      final name = await widget.bloggerService.getUserDisplayName(id);
-      _nameCache[id] = name;
+    final uncachedIds = ids.toList();
+    if (uncachedIds.isEmpty) {
+      if (mounted) setState(() {});
+      return;
+    }
+    final names = await Future.wait(
+      uncachedIds.map((id) => widget.bloggerService.getUserDisplayName(id)),
+    );
+    for (var i = 0; i < uncachedIds.length; i++) {
+      _nameCache[uncachedIds[i]] = names[i];
     }
     if (mounted) setState(() {});
   }

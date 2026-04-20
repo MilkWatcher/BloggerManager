@@ -190,11 +190,13 @@ class BloggerDetailScreen extends StatelessWidget {
   }
 
   Widget _buildBlogsByBlogger(FirebaseFirestore firestore) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: firestore
+    return FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      future: firestore
           .collection('blogs')
           .where('uploadedBy', isEqualTo: bloggerId)
-          .snapshots(),
+          .orderBy('uploadedAt', descending: true)
+          .limit(20)
+          .get(),
       builder: (
         BuildContext context,
         AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot,
@@ -468,8 +470,8 @@ class BloggerDetailScreen extends StatelessWidget {
       databaseId: 'default',
     );
 
-    final Widget content = StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: firestore.collection('users').doc(bloggerId).snapshots(),
+    final Widget content = FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        future: firestore.collection('users').doc(bloggerId).get(),
         builder: (
           BuildContext context,
           AsyncSnapshot<DocumentSnapshot<Map<String, dynamic>>> snapshot,

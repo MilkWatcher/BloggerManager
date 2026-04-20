@@ -78,6 +78,7 @@ class BloggerService {
     try {
       final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
           .collection(_usersCollection)
+          .where('verificationStatus', isEqualTo: 'Approved')
           .orderBy('createdAt', descending: true)
           .get();
 
@@ -212,14 +213,16 @@ class BloggerService {
 
   // ─── MODERATION METHODS ─────────────────────────────────────────
 
-  /// Validate that the target user is a blogger (not admin or moderator)
-  Future<void> _validateModerationTarget(String userId) async {
+  /// Validate that the target user is a blogger (not admin or moderator).
+  /// Returns the user so callers can reuse the read.
+  Future<BloggerUser?> _validateModerationTarget(String userId) async {
     final doc = await _firestore.collection(_usersCollection).doc(userId).get();
     if (!doc.exists) throw Exception('User not found.');
     final role = doc.data()?['role'] as String? ?? 'blogger';
     if (role == 'admin' || role == 'moderator') {
       throw Exception('Cannot perform moderation actions on admins or moderators.');
     }
+    return BloggerUser.fromJson(doc.data()!, userId);
   }
 
   /// Ban a blogger for a specified duration
@@ -229,10 +232,9 @@ class BloggerService {
     required String duration,
     String? reason,
   }) async {
-    await _validateModerationTarget(userId);
+    final blogger = await _validateModerationTarget(userId);
 
     final DateTime banExpiry = _calculateBanExpiry(duration);
-    final blogger = await getBlogger(userId);
 
     // Update user status
     await _firestore.collection(_usersCollection).doc(userId).set({
@@ -284,9 +286,7 @@ class BloggerService {
     required String moderatorId,
     String? reason,
   }) async {
-    await _validateModerationTarget(userId);
-
-    final blogger = await getBlogger(userId);
+    final blogger = await _validateModerationTarget(userId);
 
     await _firestore.collection(_usersCollection).doc(userId).set({
       'status': 'active',
@@ -315,9 +315,7 @@ class BloggerService {
     required String moderatorId,
     String? reason,
   }) async {
-    await _validateModerationTarget(userId);
-
-    final blogger = await getBlogger(userId);
+    final blogger = await _validateModerationTarget(userId);
 
     // Create moderation log
     await _firestore.collection(_moderationLogsCollection).add({
@@ -381,13 +379,24 @@ class BloggerService {
   }) async {
     await _validateModerationTarget(userId);
 
-    // Delete all blogs by this user
+    // Delete all blogs by this user using a batch
     final blogsSnapshot = await _firestore
         .collection(_blogsCollection)
         .where('uploadedBy', isEqualTo: userId)
         .get();
-    for (final doc in blogsSnapshot.docs) {
-      await doc.reference.delete();
+    if (blogsSnapshot.docs.isNotEmpty) {
+      var batch = _firestore.batch();
+      int count = 0;
+      for (final doc in blogsSnapshot.docs) {
+        batch.delete(doc.reference);
+        count++;
+        if (count == 499) {
+          await batch.commit();
+          batch = _firestore.batch();
+          count = 0;
+        }
+      }
+      if (count > 0) await batch.commit();
     }
 
     // Delete all notifications for this user (best-effort)
@@ -397,8 +406,19 @@ class BloggerService {
           .doc(userId)
           .collection('notifications')
           .get();
-      for (final doc in notifSnapshot.docs) {
-        await doc.reference.delete();
+      if (notifSnapshot.docs.isNotEmpty) {
+        var notifBatch = _firestore.batch();
+        int notifCount = 0;
+        for (final doc in notifSnapshot.docs) {
+          notifBatch.delete(doc.reference);
+          notifCount++;
+          if (notifCount == 499) {
+            await notifBatch.commit();
+            notifBatch = _firestore.batch();
+            notifCount = 0;
+          }
+        }
+        if (notifCount > 0) await notifBatch.commit();
       }
     } catch (_) {}
 
@@ -446,7 +466,8 @@ class BloggerService {
     try {
       Query<Map<String, dynamic>> query = _firestore
           .collection(_moderationLogsCollection)
-          .orderBy('createdAt', descending: true);
+          .orderBy('createdAt', descending: true)
+          .limit(500);
 
       if (userId != null) {
         query = query.where('userId', isEqualTo: userId);
@@ -468,6 +489,7 @@ class BloggerService {
       final snapshot = await _firestore
           .collection(_usersCollection)
           .orderBy('createdAt', descending: true)
+          .limit(500)
           .get();
 
       return snapshot.docs
@@ -486,6 +508,7 @@ class BloggerService {
       final snapshot = await _firestore
           .collection(_blogsCollection)
           .orderBy('uploadedAt', descending: true)
+          .limit(500)
           .get();
 
       return snapshot.docs.map((doc) {
@@ -505,6 +528,7 @@ class BloggerService {
       final snapshot = await _firestore
           .collection(_usersCollection)
           .orderBy('createdAt', descending: true)
+          .limit(500)
           .get();
 
       return snapshot.docs
@@ -519,12 +543,13 @@ class BloggerService {
   /// Get warning count for a user
   Future<int> getWarningCount(String userId) async {
     try {
-      final snapshot = await _firestore
+      final result = await _firestore
           .collection(_moderationLogsCollection)
           .where('userId', isEqualTo: userId)
           .where('actionType', isEqualTo: 'warn')
+          .count()
           .get();
-      return snapshot.docs.length;
+      return result.count ?? 0;
     } catch (e) {
       return 0;
     }
@@ -610,7 +635,8 @@ class BloggerService {
     try {
       Query<Map<String, dynamic>> query = _firestore
           .collection(_reportsCollection)
-          .orderBy('createdAt', descending: true);
+          .orderBy('createdAt', descending: true)
+          .limit(500);
 
       if (status != null && status.isNotEmpty) {
         query = query.where('status', isEqualTo: status);

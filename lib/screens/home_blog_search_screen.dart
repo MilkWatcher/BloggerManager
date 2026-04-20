@@ -186,7 +186,8 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
   Query<Map<String, dynamic>> _buildBaseQuery() {
     Query<Map<String, dynamic>> query = _firestore
         .collection('blogs')
-        .orderBy('uploadedAt', descending: _sortDescending);
+        .orderBy('uploadedAt', descending: _sortDescending)
+        .limit(200);
 
     if (_selectedTags.isNotEmpty) {
       query = query.where('tags', arrayContainsAny: _selectedTags);
@@ -614,59 +615,23 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
     final String? uploadedBy = data['uploadedBy'] as String?;
     final String? embeddedImage = data['authorProfileImageBase64'] as String?;
 
-    if (uploadedBy == null || uploadedBy.isEmpty) {
-      final String name = embeddedName.isEmpty ? 'Anonymous Blogger' : embeddedName;
-      return Row(
-        children: [
-          _buildAuthorMiniAvatar(authorImageBase64: embeddedImage),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              'by: $name',
-              style: const TextStyle(fontSize: 12),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+    final String resolvedName = embeddedName.isNotEmpty && embeddedName != uploadedBy
+        ? embeddedName
+        : (_bloggerNameMap[uploadedBy ?? ''] ?? 'Anonymous Blogger');
+
+    return Row(
+      children: [
+        _buildAuthorMiniAvatar(authorImageBase64: embeddedImage),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            'by: $resolvedName',
+            style: const TextStyle(fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-        ],
-      );
-    }
-
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: _firestore.collection('users').doc(uploadedBy).snapshots(),
-      builder: (
-        BuildContext context,
-        AsyncSnapshot<DocumentSnapshot<Map<String, dynamic>>> snapshot,
-      ) {
-        final Map<String, dynamic>? userData = snapshot.data?.data();
-        final String userName = (userData?['displayName'] as String? ?? '').trim();
-        final String? userImage = userData?['profileImageBase64'] as String?;
-
-        final String resolvedName = userName.isNotEmpty
-            ? userName
-            : (embeddedName.isNotEmpty && embeddedName != uploadedBy
-                  ? embeddedName
-                  : 'Anonymous Blogger');
-
-        final String? resolvedImage = (userImage != null && userImage.isNotEmpty)
-            ? userImage
-            : embeddedImage;
-
-        return Row(
-          children: [
-            _buildAuthorMiniAvatar(authorImageBase64: resolvedImage),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                'by: $resolvedName',
-                style: const TextStyle(fontSize: 12),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        );
-      },
+        ),
+      ],
     );
   }
 

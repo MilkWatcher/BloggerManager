@@ -50,6 +50,7 @@ class AdminStatsService {
               isGreaterThanOrEqualTo:
                   Timestamp.fromDate(threeMonthsAgo))
           .get(),
+      _firestore.collection('moderation_logs').count().get(),
     ]);
 
     final activeUsers =
@@ -108,11 +109,8 @@ class AdminStatsService {
         .where((s) => seen.add(s.weekStart))
         .toList();
 
-    // Total mod actions = sum of all logs fetched (only last 3 months here).
-    // For the summary card we want the all-time total — use a separate count.
-    final allTimeCount =
-        await _firestore.collection('moderation_logs').count().get();
-    final totalModActions = allTimeCount.count ?? 0;
+    // Total mod actions — all-time count fetched in parallel above
+    final totalModActions = (results[4] as AggregateQuerySnapshot).count ?? 0;
 
     return AdminStats(
       activeUsers: activeUsers,

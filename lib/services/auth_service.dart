@@ -117,6 +117,7 @@ class AuthService {
           .collection('notifications')
           .where('acknowledged', isEqualTo: false)
           .orderBy('createdAt', descending: true)
+          .limit(50)
           .get();
 
       return snapshot.docs
