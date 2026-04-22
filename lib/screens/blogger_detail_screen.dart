@@ -7,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/blogger_service.dart';
+import '../widgets/tag_chip.dart';
 
 class BloggerDetailScreen extends StatelessWidget {
   const BloggerDetailScreen({
@@ -87,7 +88,7 @@ class BloggerDetailScreen extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: tags.map((String tag) => Chip(label: Text(tag))).toList(),
+            children: tags.map((String tag) => TagChip(tag: tag, small: true)).toList(),
           ),
         if (bloggerId != FirebaseAuth.instance.currentUser?.uid) ...[
           const SizedBox(height: 12),

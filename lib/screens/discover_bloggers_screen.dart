@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import '../models/blogger_user.dart';
 import '../services/blogger_service.dart';
+import '../widgets/tag_chip.dart';
 import 'blogger_detail_screen.dart';
 
 class DiscoverBloggersScreen extends StatefulWidget {
@@ -305,14 +306,7 @@ class _BloggerCard extends StatelessWidget {
                       Wrap(
                         spacing: 6,
                         runSpacing: 4,
-                        children: blogger.tags.take(4).map((tag) {
-                          return Chip(
-                            label: Text(tag),
-                            labelStyle: const TextStyle(fontSize: 11),
-                            visualDensity: VisualDensity.compact,
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          );
-                        }).toList(),
+                        children: blogger.tags.take(4).map((tag) => TagChip(tag: tag, small: true)).toList(),
                       ),
                     ],
                   ],

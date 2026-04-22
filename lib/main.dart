@@ -17,6 +17,7 @@ import 'screens/edit_blogger_profile_screen.dart';
 import 'screens/home_blog_search_screen.dart';
 import 'screens/upload_blog_screen.dart';
 import 'screens/moderation_dashboard_screen.dart';
+import 'widgets/tag_chip.dart';
 import 'screens/force_password_change_screen.dart';
 import 'screens/email_verification_screen.dart';
 import 'screens/tos_acceptance_screen.dart';
@@ -1405,6 +1406,7 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
               padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 14),
               child: Material(
                 elevation: 4,
+                color: const Color(0xFFD1CFE5),
                 borderRadius: BorderRadius.circular(16),
                 clipBehavior: Clip.antiAlias,
                 child: _buildPage(_selectedIndex),
@@ -1652,10 +1654,10 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
                                       ),
                                       const SizedBox(height: 8),
                                       Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
+                                        spacing: 6,
+                                        runSpacing: 4,
                                         children: blogger.tags
-                                            .map<Widget>((String tag) => Chip(label: Text(tag)))
+                                            .map<Widget>((String tag) => TagChip(tag: tag, small: true))
                                             .toList(),
                                       ),
                                     ],
