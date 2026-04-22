@@ -615,15 +615,21 @@ class _AuthScreenState extends State<AuthScreen> {
         );
       }
 
+      // If the Firestore doc was deleted (e.g. admin deletion) but the Auth
+      // account still exists, treat the next sign-in as a fresh registration
+      // so the user gets a valid verificationStatus and is visible again.
+      final existingDoc = await _firestore.collection('users').doc(user.uid).get();
+      final bool isNewDoc = !existingDoc.exists;
+
       await _firestore.collection('users').doc(user.uid).set({
         'uid': user.uid,
         'email': email,
         'displayName': user.displayName ?? '',
         'lastLoginAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        if (!_isLoginMode) 'createdAt': FieldValue.serverTimestamp(),
-        if (!_isLoginMode) 'verificationStatus': 'Approved',
-        if (!_isLoginMode) 'profileSetupCompleted': false,
+        if (!_isLoginMode || isNewDoc) 'createdAt': FieldValue.serverTimestamp(),
+        if (!_isLoginMode || isNewDoc) 'verificationStatus': 'Approved',
+        if (!_isLoginMode || isNewDoc) 'profileSetupCompleted': false,
       }, SetOptions(merge: true));
 
       if (!mounted) {
