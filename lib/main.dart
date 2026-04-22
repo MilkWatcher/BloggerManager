@@ -1392,14 +1392,25 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
             opacity: 0.35,
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-          child: Material(
-            elevation: 4,
-            borderRadius: BorderRadius.circular(16),
-            clipBehavior: Clip.antiAlias,
-            child: _buildPage(_selectedIndex),
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final bool isMobile = constraints.maxWidth < 600;
+            if (isMobile) {
+              return _buildPage(_selectedIndex);
+            }
+            final double hPad = constraints.maxWidth >= 1400
+                ? constraints.maxWidth * 0.20
+                : constraints.maxWidth * 0.10;
+            return Padding(
+              padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 14),
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(16),
+                clipBehavior: Clip.antiAlias,
+                child: _buildPage(_selectedIndex),
+              ),
+            );
+          },
         ),
       ),
       floatingActionButton: _selectedIndex == 0
