@@ -121,8 +121,8 @@ class _MyAppState extends State<MyApp> {
         ),
         cardTheme: CardThemeData(
           color: Colors.white,
-          elevation: 3,
-          shadowColor: Colors.black.withValues(alpha: 0.12),
+          elevation: 6,
+          shadowColor: Colors.black.withValues(alpha: 0.22),
           surfaceTintColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -1406,7 +1406,7 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
               padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 14),
               child: Material(
                 elevation: 4,
-                color: const Color(0xFFD1CFE5),
+                color: const Color(0xFFEAEAF4),
                 borderRadius: BorderRadius.circular(16),
                 clipBehavior: Clip.antiAlias,
                 child: _buildPage(_selectedIndex),
