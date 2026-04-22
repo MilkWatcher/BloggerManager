@@ -69,6 +69,8 @@ flutter:
   uses-material-design: true
   assets:
     - lib/images/blogDB.png
+    - lib/images/lined.png
+    - "lib/images/lined full.png"
 
   # To add assets to your application, add an assets section, like this:
   # assets:

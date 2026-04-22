@@ -97,12 +97,33 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'Blogger Manager',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        scaffoldBackgroundColor: const Color(0xFFF3EEFF),
-        cardTheme: const CardThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF7B68C8)),
+        scaffoldBackgroundColor: const Color(0xFFD5D0EF),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFFDAD7FD),
+          surfaceTintColor: Color(0xFFDAD7FD),
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          iconTheme: IconThemeData(color: Color(0xFF3D2E8A)),
+          actionsIconTheme: IconThemeData(color: Color(0xFF3D2E8A)),
+          titleTextStyle: TextStyle(
+            color: Color(0xFF1E1A3C),
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Color(0xFFDAD7FD),
+          selectedItemColor: Color(0xFF3D2E8A),
+          unselectedItemColor: Color(0xFF8A80C4),
+          elevation: 0,
+        ),
+        cardTheme: CardThemeData(
           color: Colors.white,
-          elevation: 1.5,
+          elevation: 3,
+          shadowColor: Colors.black.withValues(alpha: 0.12),
           surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -1362,7 +1383,25 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
           ),
         ],
       ),
-      body: _buildPage(_selectedIndex),
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: Color(0xFFD5D0EF),
+          image: DecorationImage(
+            image: AssetImage('lib/images/lined full.png'),
+            fit: BoxFit.cover,
+            opacity: 0.35,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(16),
+            clipBehavior: Clip.antiAlias,
+            child: _buildPage(_selectedIndex),
+          ),
+        ),
+      ),
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton.extended(
               onPressed: () {
@@ -1372,6 +1411,12 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
                   ),
                 );
               },
+              backgroundColor: const Color(0xFF7B68C8),
+              foregroundColor: Colors.white,
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               icon: const Icon(Icons.upload_file),
               label: const Text('Upload Blog'),
             )

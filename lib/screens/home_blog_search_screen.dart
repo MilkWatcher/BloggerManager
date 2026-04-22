@@ -959,11 +959,11 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
                                 icon: const Icon(Icons.map_outlined),
                                 label: const Text('Google Maps'),
                               ),
-                              ElevatedButton.icon(
+                              OutlinedButton.icon(
                                 onPressed: domainLink.isEmpty
                                     ? null
                                     : () => _openBlogLinkWithWarning(domainLink),
-                                icon: const Icon(Icons.open_in_new),
+                                icon: const Icon(Icons.open_in_new, size: 16),
                                 label: const Text('Visit Blog'),
                               ),
                               if (uploadedBy != FirebaseAuth.instance.currentUser?.uid)
