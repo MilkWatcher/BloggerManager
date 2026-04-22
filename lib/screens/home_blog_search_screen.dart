@@ -67,6 +67,8 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
 
   // uid → displayName map for blogger-name search
   Map<String, String> _bloggerNameMap = {};
+  // uid → profileImageBase64 map for live avatars
+  Map<String, String?> _bloggerImageMap = {};
 
   static const Map<String, String> _countryCodeByName = <String, String>{
     'ireland': 'IE',
@@ -154,16 +156,21 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
           .collection('users')
           .where('verificationStatus', isEqualTo: 'Approved')
           .get();
-      final map = <String, String>{};
+      final nameMap = <String, String>{};
+      final imageMap = <String, String?>{};
       for (final doc in snapshot.docs) {
         final data = doc.data();
         final name = (data['displayName'] as String? ?? '').trim();
         if (name.isNotEmpty) {
-          map[doc.id] = name;
+          nameMap[doc.id] = name;
         }
+        imageMap[doc.id] = data['profileImageBase64'] as String?;
       }
       if (mounted) {
-        setState(() => _bloggerNameMap = map);
+        setState(() {
+          _bloggerNameMap = nameMap;
+          _bloggerImageMap = imageMap;
+        });
       }
     } catch (_) {}
   }
@@ -611,17 +618,19 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
   }
 
   Widget _buildAuthorIdentity(Map<String, dynamic> data) {
-    final String embeddedName = (data['authorDisplayName'] as String? ?? '').trim();
     final String? uploadedBy = data['uploadedBy'] as String?;
-    final String? embeddedImage = data['authorProfileImageBase64'] as String?;
+    final String embeddedName = (data['authorDisplayName'] as String? ?? '').trim();
 
-    final String resolvedName = embeddedName.isNotEmpty && embeddedName != uploadedBy
-        ? embeddedName
-        : (_bloggerNameMap[uploadedBy ?? ''] ?? 'Anonymous Blogger');
+    // Always prefer live user data over stale denormalized fields
+    final String resolvedName = _bloggerNameMap[uploadedBy ?? ''] ??
+        (embeddedName.isNotEmpty ? embeddedName : 'Anonymous Blogger');
+    final String? resolvedImage = _bloggerImageMap.containsKey(uploadedBy)
+        ? _bloggerImageMap[uploadedBy]
+        : data['authorProfileImageBase64'] as String?;
 
     return Row(
       children: [
-        _buildAuthorMiniAvatar(authorImageBase64: embeddedImage),
+        _buildAuthorMiniAvatar(authorImageBase64: resolvedImage),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
