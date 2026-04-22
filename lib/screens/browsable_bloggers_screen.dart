@@ -65,6 +65,34 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
   bool _isUpdatingLocation = false;
   bool _mobileFiltersExpanded = false;
 
+  // Cache of live user profile data keyed by userId
+  final Map<String, Map<String, dynamic>> _liveUserData = {};
+  final Set<String> _fetchedUserIds = {};
+
+  Future<void> _fetchLiveUserData(List<String> ids) async {
+    final List<String> toFetch =
+        ids.where((id) => !_fetchedUserIds.contains(id)).toList();
+    if (toFetch.isEmpty) return;
+    _fetchedUserIds.addAll(toFetch);
+
+    final Map<String, Map<String, dynamic>> newData = {};
+    for (int i = 0; i < toFetch.length; i += 10) {
+      final List<String> chunk =
+          toFetch.sublist(i, (i + 10).clamp(0, toFetch.length));
+      final snapshot = await _firestore
+          .collection('users')
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+      for (final doc in snapshot.docs) {
+        newData[doc.id] = doc.data();
+      }
+    }
+
+    if (mounted && newData.isNotEmpty) {
+      setState(() => _liveUserData.addAll(newData));
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -387,8 +415,9 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
     );
   }
 
-  Widget _buildProfileImage(Map<String, dynamic> data) {
-    final String? profileImageBase64 = data['profileImageBase64'] as String?;
+  Widget _buildProfileImage(Map<String, dynamic> data, {String? overrideBase64}) {
+    final String? profileImageBase64 =
+        overrideBase64 ?? data['profileImageBase64'] as String?;
     if (profileImageBase64 != null && profileImageBase64.isNotEmpty) {
       try {
         final Uint8List bytes = base64Decode(profileImageBase64);
@@ -410,11 +439,16 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
     double? maxDistanceKm,
   ) {
     final String bloggerId = doc['bloggerId'] as String;
+    final Map<String, dynamic>? liveUser = _liveUserData[bloggerId];
 
+    final String rawName = (liveUser?['displayName'] as String? ??
+            doc['displayName'] as String? ??
+            '')
+        .trim();
     final String displayName =
-        (doc['displayName'] as String? ?? '').trim().isNotEmpty
-            ? (doc['displayName'] as String).trim()
-            : 'Anonymous Blogger';
+        rawName.isNotEmpty ? rawName : 'Anonymous Blogger';
+    final String? liveProfileImage =
+        liveUser?['profileImageBase64'] as String?;
     final String city = (doc['city'] as String? ?? '').trim();
     final String county = (doc['county'] as String? ?? '').trim();
     final GeoPoint? bloggerPoint = doc['location'] as GeoPoint?;
@@ -457,7 +491,7 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
                 children: [
                   Row(
                     children: [
-                      _buildProfileImage(doc),
+                      _buildProfileImage(doc, overrideBase64: liveProfileImage),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -548,6 +582,13 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
                   snapshot.data?.docs ?? <QueryDocumentSnapshot<Map<String, dynamic>>>[];
                 final List<Map<String, dynamic>> filteredDocs =
                   _applyClientFilters(docs);
+
+              // Fetch live user profiles for any new blogger IDs
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _fetchLiveUserData(
+                  filteredDocs.map((d) => d['bloggerId'] as String).toList(),
+                );
+              });
 
               if (filteredDocs.isEmpty) {
                 return Center(
