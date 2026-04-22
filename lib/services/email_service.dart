@@ -16,10 +16,9 @@ class EmailService {
     required String duration,
     required DateTime expiryDate,
   }) async {
-    try {
-      final formattedDuration = _formatDuration(duration);
-      final formattedExpiry = expiryDate.toLocal().toString().split('.').first;
-      final body = '''
+    final formattedDuration = _formatDuration(duration);
+    final formattedExpiry = expiryDate.toLocal().toString().split('.').first;
+    final body = '''
         <p>Your <strong>Blogger Manager</strong> account has been suspended.</p>
         <table style="width:100%;border-collapse:collapse;background:#EAEAF4;border-radius:8px;margin:20px 0;padding:16px;">
           <tr>
@@ -37,12 +36,9 @@ class EmailService {
         </table>
         <p>If you believe this was a mistake, please contact your platform administrator.</p>
       ''';
-      final html = _buildEmailHtml(title: 'Account Suspended', recipientName: toName, bodyHtml: body);
-      await _sendEmail(_banTemplateId, _params(toEmail: toEmail, toName: toName, html: html));
-      developer.log('Ban notification sent to $toEmail', name: 'EmailService');
-    } catch (e) {
-      developer.log('Failed to send ban notification: $e', error: e, name: 'EmailService');
-    }
+    final html = _buildEmailHtml(title: 'Account Suspended', recipientName: toName, bodyHtml: body);
+    await _sendEmail(_banTemplateId, _params(toEmail: toEmail, toName: toName, html: html));
+    developer.log('Ban notification sent to $toEmail', name: 'EmailService');
   }
 
   Future<void> sendWarningNotification({
@@ -50,8 +46,7 @@ class EmailService {
     required String toName,
     String? reason,
   }) async {
-    try {
-      final body = '''
+    final body = '''
         <p>You have received a formal warning on your <strong>Blogger Manager</strong> account.</p>
         <table style="width:100%;border-collapse:collapse;background:#EAEAF4;border-radius:8px;margin:20px 0;padding:16px;">
           <tr>
@@ -61,12 +56,9 @@ class EmailService {
         </table>
         <p>Repeated violations of our community guidelines may result in a temporary or permanent suspension. Please review the platform rules.</p>
       ''';
-      final html = _buildEmailHtml(title: 'Account Warning', recipientName: toName, bodyHtml: body);
-      await _sendEmail(_warnTemplateId, _params(toEmail: toEmail, toName: toName, html: html));
-      developer.log('Warning notification sent to $toEmail', name: 'EmailService');
-    } catch (e) {
-      developer.log('Failed to send warning notification: $e', error: e, name: 'EmailService');
-    }
+    final html = _buildEmailHtml(title: 'Account Warning', recipientName: toName, bodyHtml: body);
+    await _sendEmail(_warnTemplateId, _params(toEmail: toEmail, toName: toName, html: html));
+    developer.log('Warning notification sent to $toEmail', name: 'EmailService');
   }
 
   Future<void> sendUnbanNotification({
@@ -74,8 +66,7 @@ class EmailService {
     required String toName,
     String? reason,
   }) async {
-    try {
-      final body = '''
+    final body = '''
         <p>Your <strong>Blogger Manager</strong> account suspension has been lifted. You may now log in and use the platform again.</p>
         ${(reason != null && reason != 'Your ban has been lifted. You may now log in again.') ? '''
         <table style="width:100%;border-collapse:collapse;background:#EAEAF4;border-radius:8px;margin:20px 0;padding:16px;">
@@ -85,18 +76,15 @@ class EmailService {
           </tr>
         </table>''' : ''}
       ''';
-      final html = _buildEmailHtml(
-        title: 'Account Reinstated',
-        recipientName: toName,
-        bodyHtml: body,
-        ctaLabel: 'Log In Now',
-        ctaUrl: 'https://bloggermanager-f1e21.web.app',
-      );
-      await _sendEmail(_banTemplateId, _params(toEmail: toEmail, toName: toName, html: html));
-      developer.log('Unban notification sent to $toEmail', name: 'EmailService');
-    } catch (e) {
-      developer.log('Failed to send unban notification: $e', error: e, name: 'EmailService');
-    }
+    final html = _buildEmailHtml(
+      title: 'Account Reinstated',
+      recipientName: toName,
+      bodyHtml: body,
+      ctaLabel: 'Log In Now',
+      ctaUrl: 'https://bloggermanager-f1e21.web.app',
+    );
+    await _sendEmail(_banTemplateId, _params(toEmail: toEmail, toName: toName, html: html));
+    developer.log('Unban notification sent to $toEmail', name: 'EmailService');
   }
 
   Map<String, dynamic> _params({
@@ -115,6 +103,12 @@ class EmailService {
   }
 
   Future<void> _sendEmail(String templateId, Map<String, dynamic> templateParams) async {
+    final toEmail = templateParams['to_email'] as String? ?? '';
+    if (toEmail.isEmpty) {
+      throw Exception('Cannot send email: recipient email address is empty.');
+    }
+    developer.log('Sending email via EmailJS to: $toEmail (template: $templateId)', name: 'EmailService');
+
     final response = await http.post(
       Uri.parse(_emailJsUrl),
       headers: {'Content-Type': 'application/json'},
@@ -126,8 +120,10 @@ class EmailService {
       }),
     );
 
+    developer.log('EmailJS response ${response.statusCode}: ${response.body}', name: 'EmailService');
+
     if (response.statusCode != 200) {
-      throw Exception('EmailJS returned status ${response.statusCode}: ${response.body}');
+      throw Exception('EmailJS error ${response.statusCode}: ${response.body}');
     }
   }
 
@@ -152,8 +148,8 @@ class EmailService {
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 6px 32px rgba(30,26,60,0.13);">
         <tr>
-          <td style="background:#1E1A3C;padding:22px 32px;text-align:center;">
-            <span style="color:#DAD7FD;font-size:20px;font-weight:700;letter-spacing:0.8px;">Blogger Manager</span>
+          <td style="background:#7B68C8;padding:22px 32px;text-align:center;">
+            <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:0.8px;">Blogger Manager</span>
           </td>
         </tr>
         <tr>
