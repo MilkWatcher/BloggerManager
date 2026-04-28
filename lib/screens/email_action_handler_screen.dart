@@ -23,10 +23,30 @@ class _EmailActionHandlerScreenState extends State<EmailActionHandlerScreen> {
   bool _success = false;
   String? _errorMessage;
 
+  // Password reset form state
+  final TextEditingController _newPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+  bool _obscureNew = true;
+  bool _obscureConfirm = true;
+  bool _isResetting = false;
+
   @override
   void initState() {
     super.initState();
-    _handleAction();
+    if (widget.mode == 'resetPassword') {
+      // Skip processing — show the new-password form immediately
+      setState(() => _isProcessing = false);
+    } else {
+      _handleAction();
+    }
+  }
+
+  @override
+  void dispose() {
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 
   Future<void> _handleAction() async {
@@ -37,14 +57,6 @@ class _EmailActionHandlerScreenState extends State<EmailActionHandlerScreen> {
         await FirebaseAuth.instance.currentUser?.reload();
         await FirebaseAuth.instance.currentUser?.getIdToken(true);
         if (mounted) setState(() { _success = true; _isProcessing = false; });
-      } else if (widget.mode == 'resetPassword') {
-        // For password reset, just show a message directing user to login
-        if (mounted) {
-          setState(() {
-            _success = true;
-            _isProcessing = false;
-          });
-        }
       } else {
         if (mounted) {
           setState(() {
@@ -76,6 +88,55 @@ class _EmailActionHandlerScreenState extends State<EmailActionHandlerScreen> {
     }
   }
 
+  Future<void> _confirmReset() async {
+    final newPassword = _newPasswordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
+
+    if (newPassword.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a new password.')),
+      );
+      return;
+    }
+    if (newPassword.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Password must be at least 6 characters.')),
+      );
+      return;
+    }
+    if (newPassword != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match.')),
+      );
+      return;
+    }
+
+    setState(() => _isResetting = true);
+    try {
+      await FirebaseAuth.instance.confirmPasswordReset(
+        code: widget.oobCode,
+        newPassword: newPassword,
+      );
+      if (mounted) setState(() { _success = true; });
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      final message = switch (e.code) {
+        'expired-action-code' =>
+          'This reset link has expired. Please request a new one.',
+        'invalid-action-code' =>
+          'This reset link is invalid or has already been used.',
+        'weak-password' =>
+          'Password is too weak. Please choose a stronger password.',
+        _ => e.message ?? 'An error occurred. Please try again.',
+      };
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) setState(() => _isResetting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -104,10 +165,89 @@ class _EmailActionHandlerScreenState extends State<EmailActionHandlerScreen> {
                       const CircularProgressIndicator(),
                       const SizedBox(height: 16),
                       Text(
-                        widget.mode == 'verifyEmail'
-                            ? 'Verifying your email...'
-                            : 'Processing...',
+                        'Verifying your email...',
                         style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                    ] else if (widget.mode == 'resetPassword' && !_success) ...[
+                      // ── Password reset form ──────────────────────────
+                      const Icon(Icons.lock_reset_rounded,
+                          size: 48, color: Color(0xFF7B68C8)),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Choose a new password',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Enter and confirm your new password below.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.grey.shade600,
+                            ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: _newPasswordController,
+                        obscureText: _obscureNew,
+                        decoration: InputDecoration(
+                          labelText: 'New password',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscureNew
+                                ? Icons.visibility_off
+                                : Icons.visibility),
+                            onPressed: () =>
+                                setState(() => _obscureNew = !_obscureNew),
+                          ),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: _confirmPasswordController,
+                        obscureText: _obscureConfirm,
+                        decoration: InputDecoration(
+                          labelText: 'Confirm new password',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscureConfirm
+                                ? Icons.visibility_off
+                                : Icons.visibility),
+                            onPressed: () => setState(
+                                () => _obscureConfirm = !_obscureConfirm),
+                          ),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: _isResetting ? null : _confirmReset,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primary,
+                            foregroundColor:
+                                Theme.of(context).colorScheme.onPrimary,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: _isResetting
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white),
+                                )
+                              : const Text('Set New Password'),
+                        ),
                       ),
                     ] else if (_success) ...[
                       Icon(
@@ -119,14 +259,14 @@ class _EmailActionHandlerScreenState extends State<EmailActionHandlerScreen> {
                       Text(
                         widget.mode == 'verifyEmail'
                             ? 'Email Verified!'
-                            : 'Action Completed',
+                            : 'Password Updated!',
                         style: Theme.of(context).textTheme.headlineSmall,
                       ),
                       const SizedBox(height: 12),
                       Text(
                         widget.mode == 'verifyEmail'
                             ? 'Your email address has been successfully verified. You can now continue to Blogger Manager.'
-                            : 'The action has been completed successfully.',
+                            : 'Your password has been successfully reset. You can now log in with your new password.',
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 24),
@@ -145,7 +285,7 @@ class _EmailActionHandlerScreenState extends State<EmailActionHandlerScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Verification Failed',
+                        'Something went wrong',
                         style: Theme.of(context).textTheme.headlineSmall,
                       ),
                       const SizedBox(height: 12),

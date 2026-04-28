@@ -617,7 +617,7 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
     );
   }
 
-  Widget _buildAuthorIdentity(Map<String, dynamic> data) {
+  Widget _buildAuthorIdentity(Map<String, dynamic> data, {Timestamp? uploadedAt}) {
     final String? uploadedBy = data['uploadedBy'] as String?;
     final String embeddedName = (data['authorDisplayName'] as String? ?? '').trim();
 
@@ -627,6 +627,12 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
     final String? resolvedImage = _bloggerImageMap.containsKey(uploadedBy)
         ? _bloggerImageMap[uploadedBy]
         : data['authorProfileImageBase64'] as String?;
+
+    String? dateLabel;
+    if (uploadedAt != null) {
+      final DateTime dt = uploadedAt.toDate();
+      dateLabel = '${dt.day} ${_monthAbbr(dt.month)} ${dt.year}';
+    }
 
     return Row(
       children: [
@@ -640,8 +646,27 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
             overflow: TextOverflow.ellipsis,
           ),
         ),
+        if (dateLabel != null) ...
+          [
+            const SizedBox(width: 6),
+            Text(
+              dateLabel,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
       ],
     );
+  }
+
+  String _monthAbbr(int month) {
+    const List<String> months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return months[month - 1];
   }
 
   Widget _buildFiltersPanel(GeoPoint? userPoint) {
@@ -866,6 +891,7 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
             final String uploadedBy = data['uploadedBy'] as String? ?? '';
             final String description = data['description'] as String? ?? '';
             final String domainLink = data['domainLink'] as String? ?? '';
+            final Timestamp? uploadedAt = data['uploadedAt'] as Timestamp?;
             final String city = data['city'] as String? ?? '';
             final String county = data['county'] as String? ?? '';
             final String country = data['country'] as String? ?? '';
@@ -922,7 +948,7 @@ class _HomeBlogSearchScreenState extends State<HomeBlogSearchScreen> {
                             ],
                           ),
                           const SizedBox(height: 4),
-                          _buildAuthorIdentity(data),
+                          _buildAuthorIdentity(data, uploadedAt: uploadedAt),
                           if (domainLink.isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Text(

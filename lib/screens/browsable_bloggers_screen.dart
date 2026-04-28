@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'blogger_detail_screen.dart';
+import '../widgets/tag_chip.dart';
 
 enum BloggerGeoSearchMode {
   all,
@@ -383,8 +384,8 @@ class _BrowsableBloggersScreenState extends State<BrowsableBloggersScreen> {
             runSpacing: 8,
             children: _availableTags.map((String tag) {
               final bool isSelected = _selectedTags.contains(tag);
-              return FilterChip(
-                label: Text(tag),
+              return TagFilterChip(
+                tag: tag,
                 selected: isSelected,
                 onSelected: (bool selected) {
                   setState(() {

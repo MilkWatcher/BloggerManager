@@ -23,6 +23,8 @@ import 'screens/email_verification_screen.dart';
 import 'screens/tos_acceptance_screen.dart';
 import 'screens/email_action_handler_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'screens/help_screen.dart';
+import 'screens/forgot_password_screen.dart';
 import 'widgets/recaptcha_widget.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
@@ -854,6 +856,25 @@ class _AuthScreenState extends State<AuthScreen> {
                                     ),
                                   ],
                                 ),
+                                if (_isLoginMode) ...<Widget>[
+                                  TextButton(
+                                    onPressed: _isSubmitting
+                                        ? null
+                                        : () => Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    const ForgotPasswordScreen(),
+                                              ),
+                                            ),
+                                    child: Text(
+                                      'Forgot password?',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -1461,6 +1482,11 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
             icon: Icon(Icons.groups),
             label: 'Bloggers',
           ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.help_outline),
+            activeIcon: Icon(Icons.help),
+            label: 'Help',
+          ),
           if (_isModerator)
             const BottomNavigationBarItem(
               icon: Icon(Icons.shield),
@@ -1495,6 +1521,8 @@ class _ProfileDashboardScreenState extends State<ProfileDashboardScreen> {
           },
         );
       case 3:
+        return const HelpScreen();
+      case 4:
         if (_isModerator) {
           return ModerationDashboardScreen(currentUserRole: _userRole);
         }
